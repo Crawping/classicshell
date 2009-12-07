@@ -264,7 +264,8 @@ void CIconManager::ProcessPreloadedIcons( void )
 void CIconManager::LoadFolderIcons( IShellFolder *pFolder, int level )
 {
 	CComPtr<IEnumIDList> pEnum;
-	pFolder->EnumObjects(NULL,SHCONTF_NONFOLDERS|SHCONTF_FOLDERS,&pEnum);
+	if (pFolder->EnumObjects(NULL,SHCONTF_NONFOLDERS|SHCONTF_FOLDERS,&pEnum)!=S_OK) pEnum=NULL;
+	if (!pEnum) return;
 
 	PITEMID_CHILD pidl;
 	while (pEnum->Next(1,&pidl,NULL)==S_OK)
@@ -307,9 +308,10 @@ void CIconManager::LoadFolderIcons( IShellFolder *pFolder, int level )
 
 		if (level<MAX_FOLDER_LEVEL)
 		{
-			SFGAOF flags=SFGAO_FOLDER;
-			if (SUCCEEDED(pFolder->GetAttributesOf(1,&pidl,&flags)) && (flags&SFGAO_FOLDER))
+			SFGAOF flags=SFGAO_FOLDER|SFGAO_STREAM|SFGAO_LINK;
+			if (SUCCEEDED(pFolder->GetAttributesOf(1,&pidl,&flags)) && (flags&(SFGAO_FOLDER|SFGAO_STREAM|SFGAO_LINK))==SFGAO_FOLDER)
 			{
+				// go into subfolders but not archives or links to folders
 				CComPtr<IShellFolder> pChild;
 				if (SUCCEEDED(pFolder->BindToObject(pidl,NULL,IID_IShellFolder,(void**)&pChild)))
 					LoadFolderIcons(pChild,level+1);

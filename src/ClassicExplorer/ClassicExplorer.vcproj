@@ -768,6 +768,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\ClassicShellSetup\ClassicShell.ico"
+				>
+			</File>
+			<File
 				RelativePath=".\ExplorerBand.rgs"
 				>
 			</File>

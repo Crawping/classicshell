@@ -13,15 +13,24 @@ INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 {
 	if (uMsg==WM_INITDIALOG)
 	{
+		HICON icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXICON),GetSystemMetrics(SM_CYICON),LR_DEFAULTCOLOR);
+		SendMessage(hwndDlg,WM_SETICON,ICON_BIG,(LPARAM)icon);
+		icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR);
+		SendMessage(hwndDlg,WM_SETICON,ICON_SMALL,(LPARAM)icon);
+
 		CRegKey regSettings;
 		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")!=ERROR_SUCCESS)
 			regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer");
 
-		DWORD EnableCopyUI, EnableAltEnter;
+		DWORD EnableCopyUI, EnableAltEnter, BigButtons, ToolbarButtons;
 		if (regSettings.QueryDWORDValue(L"EnableCopyUI",EnableCopyUI)!=ERROR_SUCCESS)
 			EnableCopyUI=1;
 		if (regSettings.QueryDWORDValue(L"EnableAltEnter",EnableAltEnter)!=ERROR_SUCCESS)
 			EnableAltEnter=1;
+		if (regSettings.QueryDWORDValue(L"BigButtons",BigButtons)!=ERROR_SUCCESS)
+			BigButtons=0;
+		if (regSettings.QueryDWORDValue(L"ToolbarButtons",ToolbarButtons)!=ERROR_SUCCESS)
+			ToolbarButtons=((1<<CBandWindow::ID_LAST)-1)&~3;
 
 		RECT rc1,rc2;
 		GetWindowRect(hwndDlg,&rc1);
@@ -33,6 +42,12 @@ INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 
 		CheckDlgButton(hwndDlg,IDC_CHECKCOPY,EnableCopyUI?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKBHO,EnableAltEnter?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECKBIG,BigButtons?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECK1,(ToolbarButtons&(1<<CBandWindow::ID_GOUP))?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECK2,(ToolbarButtons&(1<<CBandWindow::ID_CUT))?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECK3,(ToolbarButtons&(1<<CBandWindow::ID_COPY))?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECK4,(ToolbarButtons&(1<<CBandWindow::ID_PASTE))?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECK5,(ToolbarButtons&(1<<CBandWindow::ID_DELETE))?BST_CHECKED:BST_UNCHECKED);
 		return TRUE;
 	}
 	if (uMsg==WM_COMMAND && wParam==IDOK)
@@ -41,24 +56,43 @@ INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")!=ERROR_SUCCESS)
 			regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer");
 
-		DWORD EnableCopyUI, EnableAltEnter;
+		DWORD EnableCopyUI, EnableAltEnter, BigButtons, ToolbarButtons;
 		if (regSettings.QueryDWORDValue(L"EnableCopyUI",EnableCopyUI)!=ERROR_SUCCESS)
 			EnableCopyUI=1;
 		if (regSettings.QueryDWORDValue(L"EnableAltEnter",EnableAltEnter)!=ERROR_SUCCESS)
 			EnableAltEnter=1;
+		if (regSettings.QueryDWORDValue(L"BigButtons",BigButtons)!=ERROR_SUCCESS)
+			BigButtons=0;
+		if (regSettings.QueryDWORDValue(L"ToolbarButtons",ToolbarButtons)!=ERROR_SUCCESS)
+			ToolbarButtons=((1<<CBandWindow::ID_LAST)-1)&~3;
 
 		DWORD EnableCopyUI2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKCOPY)==BST_CHECKED)?1:0;
 		DWORD EnableAltEnter2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKBHO)==BST_CHECKED)?1:0;
+		DWORD BigButtons2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKBIG)==BST_CHECKED)?1:0;
+		DWORD ToolbarButtons2=0;
+		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK1)==BST_CHECKED)?(1<<CBandWindow::ID_GOUP):0;
+		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK2)==BST_CHECKED)?(1<<CBandWindow::ID_CUT):0;
+		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK3)==BST_CHECKED)?(1<<CBandWindow::ID_COPY):0;
+		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK4)==BST_CHECKED)?(1<<CBandWindow::ID_PASTE):0;
+		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK5)==BST_CHECKED)?(1<<CBandWindow::ID_DELETE):0;
 
 		int res=0;
 		if (EnableCopyUI!=EnableCopyUI2)
 		{
 			regSettings.SetDWORDValue(L"EnableCopyUI",EnableCopyUI2);
-			res=1;
 		}
 		if (EnableAltEnter!=EnableAltEnter2)
 		{
 			regSettings.SetDWORDValue(L"EnableAltEnter",EnableAltEnter2);
+		}
+		if (BigButtons!=BigButtons2)
+		{
+			regSettings.SetDWORDValue(L"BigButtons",BigButtons2);
+			res=1;
+		}
+		if (ToolbarButtons!=ToolbarButtons2)
+		{
+			regSettings.SetDWORDValue(L"ToolbarButtons",ToolbarButtons2);
 			res=1;
 		}
 
@@ -93,46 +127,68 @@ INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM
 LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
 {
 	// create the toolbar
-	m_hWndToolbar=CreateWindow(TOOLBARCLASSNAME,L"",WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|TBSTYLE_LIST|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE,0,0,10,10,m_hWnd,(HMENU)101,g_Instance,NULL);
+	m_Toolbar=CreateWindow(TOOLBARCLASSNAME,L"",WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|TBSTYLE_LIST|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE,0,0,10,10,m_hWnd,(HMENU)101,g_Instance,NULL);
 
-	::SendMessage(m_hWndToolbar,TB_SETEXTENDEDSTYLE,0,TBSTYLE_EX_MIXEDBUTTONS);
-	::SendMessage(m_hWndToolbar,TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON),0);
-	::SendMessage(m_hWndToolbar, TB_SETMAXTEXTROWS, 1, 0L);
+	m_Toolbar.SendMessage(TB_SETEXTENDEDSTYLE,0,TBSTYLE_EX_MIXEDBUTTONS);
+	m_Toolbar.SendMessage(TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON));
+	m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 
+	CRegKey regSettings;
+	if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")!=ERROR_SUCCESS)
+		regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer");
+
+	DWORD BigButtons, ToolbarButtons;
+	if (regSettings.QueryDWORDValue(L"BigButtons",BigButtons)!=ERROR_SUCCESS)
+		BigButtons=0;
+	if (regSettings.QueryDWORDValue(L"ToolbarButtons",ToolbarButtons)!=ERROR_SUCCESS)
+		ToolbarButtons=((1<<CBandWindow::ID_LAST)-1)&~3;
 	// pick icon size based on the DPI setting
 	HDC hdc=::GetDC(NULL);
 	int dpi=GetDeviceCaps(hdc,LOGPIXELSY);
 	::ReleaseDC(NULL,hdc);
 	int iconSize;
-	if (dpi>120)
-		iconSize=24;
-	else if (dpi>96)
-		iconSize=20;
+	if (dpi>=120)
+		iconSize=BigButtons?32:24;
 	else
-		iconSize=16;
+		iconSize=BigButtons?24:16;
 
 	m_Enabled=ImageList_Create(iconSize,iconSize,ILC_COLOR32|(IsLanguageRTL()?ILC_MIRROR:0),0,2);
 
-	// load icons for parent folder (46) and folder settings (210) from Shell32.dll
+	// load icons from Shell32.dll
+	int icons[]={
+		46, // up one level
+		16762, // cut
+		243, // copy
+		16763, // paste
+		240, // delete
+		210, // settings
+	};
 	HMODULE hModule=GetModuleHandle(L"Shell32.dll");
 
-	HICON iconUp=(HICON)LoadImage(hModule,MAKEINTRESOURCE(46),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-	ImageList_AddIcon(m_Enabled,iconUp);
-	DestroyIcon(iconUp);
+	for (int i=0;i<_countof(icons);i++)
+	{
+		HICON icon=(HICON)LoadImage(hModule,MAKEINTRESOURCE(icons[i]),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
+		ImageList_AddIcon(m_Enabled,icon);
+		DestroyIcon(icon);
+	}
 
-	HICON iconSettings=(HICON)LoadImage(hModule,MAKEINTRESOURCE(210),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-	ImageList_AddIcon(m_Enabled,iconSettings);
-	DestroyIcon(iconSettings);
-
-	HIMAGELIST old=(HIMAGELIST)::SendMessage(m_hWndToolbar,TB_SETIMAGELIST,0,(LPARAM)m_Enabled);
+	HIMAGELIST old=(HIMAGELIST)m_Toolbar.SendMessage(TB_SETIMAGELIST,0,(LPARAM)m_Enabled);
 	if (old) ImageList_Destroy(old);
 
 	// add buttons
-	TBBUTTON buttons[2]={
+	ToolbarButtons|=1<<ID_SETTINGS;
+	TBBUTTON buttons[]={
 		{0,ID_GOUP,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.GoUp",L"Up One Level")},
-		{1,ID_SETTINGS,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Settings",L"Classic Explorer Settings")},
+		{1,ID_CUT,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Cut",L"Cut")},
+		{2,ID_COPY,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Copy",L"Copy")},
+		{3,ID_PASTE,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Paste",L"Paste")},
+		{4,ID_DELETE,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Delete",L"Delete")},
+		{5,ID_SETTINGS,TBSTATE_ENABLED,BTNS_BUTTON|BTNS_AUTOSIZE,{0},0,(INT_PTR)FindSetting("Toolbar.Settings",L"Classic Explorer Settings")},
 	};
-	::SendMessage(m_hWndToolbar,TB_ADDBUTTONS,_countof(buttons),(LPARAM)buttons);
+	for (int i=0;i<_countof(buttons);i++)
+		if (!(ToolbarButtons&(1<<buttons[i].idCommand)))
+			buttons[i].fsState|=TBSTATE_HIDDEN;
+	m_Toolbar.SendMessage(TB_ADDBUTTONS,_countof(buttons),(LPARAM)buttons);
 	return 0;
 }
 
@@ -151,6 +207,49 @@ LRESULT CBandWindow::OnGoUp( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHa
 	return TRUE;
 }
 
+// Executes a cut/copy/paste/delete command
+LRESULT CBandWindow::OnFileOperation( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled )
+{
+	// check if the focus is on the tree side or on the list side
+	CWindow target=GetFocus();
+	wchar_t name[256];
+	GetClassName(target,name,_countof(name));
+	target=target.GetParent();
+	if (_wcsicmp(name,WC_TREEVIEW)==0)
+	{
+		// send these commands to the parent of the tree view
+		if (wID==ID_CUT)
+			target.SendMessage(WM_COMMAND,41025);
+		if (wID==ID_COPY)
+			target.SendMessage(WM_COMMAND,41026);
+		if (wID==ID_PASTE)
+			target.SendMessage(WM_COMMAND,41027);
+		if (wID==ID_DELETE)
+			target.SendMessage(WM_COMMAND,40995);
+
+		return TRUE;
+	}
+
+	GetClassName(target,name,_countof(name));
+	if (_wcsicmp(name,L"SHELLDLL_DefView")==0)
+	{
+		// send these commands to the SHELLDLL_DefView window
+		if (wID==ID_CUT)
+		{
+			target.SendMessage(WM_COMMAND,28696);
+			target.RedrawWindow(NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN);
+		}
+		if (wID==ID_COPY)
+			target.SendMessage(WM_COMMAND,28697);
+		if (wID==ID_PASTE)
+			target.SendMessage(WM_COMMAND,28698);
+		if (wID==ID_DELETE)
+			target.SendMessage(WM_COMMAND,28689);
+	}
+
+	return TRUE;
+}
+
 // Show the settings dialog
 LRESULT CBandWindow::OnSettings( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled )
 {
@@ -158,7 +257,8 @@ LRESULT CBandWindow::OnSettings( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL&
 	if (GetKeyState(VK_SHIFT)<0)
 		*(int*)0=0; // force a crash if Shift is pressed. Makes it easy to restart explorer.exe
 #endif
-	DialogBox(g_Instance,MAKEINTRESOURCE(IDD_SETTINGS),m_hWnd,SettingsDlgProc);
+	if (DialogBox(g_Instance,MAKEINTRESOURCE(IDD_SETTINGS),m_hWnd,SettingsDlgProc))
+		MessageBox(L"The new settings will take effect the next time you open an Explorer window.",L"Classic Explorer");
 	return TRUE;
 }
 
@@ -188,7 +288,7 @@ void CBandWindow::UpdateToolbar( void )
 			}
 		}
 	}
-	SendMessage(m_hWndToolbar,TB_ENABLEBUTTON,CBandWindow::ID_GOUP,bDesktop?0:1);
+	m_Toolbar.SendMessage(TB_ENABLEBUTTON,CBandWindow::ID_GOUP,bDesktop?0:1);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -109,6 +109,12 @@
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
+        "Entry"
+        {
+        "MsmKey" = "8:_FDAE747815C940628EB330DD818944AB"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
     }
     "Configurations"
     {
@@ -192,7 +198,7 @@
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1A06DF740BA54CF48FC37EAF0CC99BF0"
             {
             "SourcePath" = "8:..\\Docs\\ClassicShellEULA.rtf"
-            "TargetName" = "8:License.rtf"
+            "TargetName" = "8:LICENSE.rtf"
             "Tag" = "8:"
             "Folder" = "8:_D30139B817584B0FB9780699379B96F5"
             "Condition" = "8:"
@@ -352,7 +358,7 @@
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_BC34D68826064CFEB96246C8D14D3EE7"
             {
             "SourcePath" = "8:..\\Docs\\ClassicShellReadme.rtf"
-            "TargetName" = "8:ClassicShellReadme.rtf"
+            "TargetName" = "8:README.rtf"
             "Tag" = "8:"
             "Folder" = "8:_D30139B817584B0FB9780699379B96F5"
             "Condition" = "8:"
@@ -365,7 +371,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
@@ -416,6 +422,26 @@
             "Tag" = "8:"
             "Folder" = "8:_D30139B817584B0FB9780699379B96F5"
             "Condition" = "8:CHECK_EXPLORER"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_FDAE747815C940628EB330DD818944AB"
+            {
+            "SourcePath" = "8:..\\HISTORY.txt"
+            "TargetName" = "8:HISTORY.txt"
+            "Tag" = "8:"
+            "Folder" = "8:_D30139B817584B0FB9780699379B96F5"
+            "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
             "ReadOnly" = "11:FALSE"
@@ -521,14 +547,14 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Classic Shell"
-        "ProductCode" = "8:{63987A05-448D-47FA-A303-566040489671}"
-        "PackageCode" = "8:{D73EA565-4A05-4AFC-8CF0-A7F967FAB742}"
+        "ProductCode" = "8:{7F27C528-D87A-4B33-A512-48EC32D6422C}"
+        "PackageCode" = "8:{686E482D-440D-4054-AC3F-8B159E7A9F04}"
         "UpgradeCode" = "8:{EB7DA1D9-44EA-43BF-8A08-0B103007D4F2}"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:0.9.0"
+        "ProductVersion" = "8:0.9.5"
         "Manufacturer" = "8:IvoSoft"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"

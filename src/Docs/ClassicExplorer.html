@@ -7,6 +7,9 @@
 
 
 
+
+
+
   
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type"><title>Classic Explorer</title>
   
@@ -23,7 +26,9 @@ body {
 }
 
   </style></head><body>
-<h1><a href="http://sourceforge.net/projects/classicshell/"><img style="border: 0px solid ; width: 64px; height: 64px;" alt="Classic Shell on Source Forge" title="Classic Shell on Source Forge" src="ClassicExplorer_files/ClassicShell.png"></a>&nbsp; Classic Explorer</h1>
+<h1><a href="http://classicshell.sourceforge.net/"><img src="ClassicExplorer_files/ClassicShell.png" style="border: 0px solid ; width: 64px; height: 64px;" alt="Classic Shell on Source Forge" title="Classic Shell on Source Forge"></a>&nbsp; Classic Explorer</h1><span style="font-style: italic; color: rgb(0, 112, 192); font-weight: bold;">Version 0.9.5 (beta)</span><br>
+<br>
+
 
 
 <p><span style="font-weight: bold; color: rgb(79, 129, 189);">Classic
@@ -35,7 +40,7 @@ Explorer</span> is a plugin for Windows Explorer that:</p>
 user-friendly &#8220;classic&#8221; version from Windows XP</li>
   <li>Handles Alt+Enter in the folder panel of Windows Explorer and
 shows the properties of the selected folder</li>
-  <li>Adds an Up button in the toolbar</li>
+  <li>Adds a toolbar to Explorer for some common operations (Go to the parent folder, Cut, Copy, Paste, Delete)</li>
 </ul>
 
 <h1>New copy UI</h1>
@@ -45,7 +50,7 @@ with this:<br>
 
 <br>
 
-<img style="width: 460px; height: 472px;" alt="Before" title="Before" src="ClassicExplorer_files/before.png"><br>
+<img src="ClassicExplorer_files/before.png" style="width: 460px; height: 472px;" alt="Before" title="Before"><br>
 
 <p>What&#8217;s wrong with it?</p>
 
@@ -64,7 +69,7 @@ that stuff and copying files is not it.</p>
 <p>The Classic Explorer plugin brings back the simpler dialog box from Windows XP:<br>
 </p>
 
-<p><img style="width: 438px; height: 251px;" alt="After" title="After" src="ClassicExplorer_files/after.png"><br>
+<p><img src="ClassicExplorer_files/after.png" style="width: 438px; height: 251px;" alt="After" title="After"><br>
 </p>
 
 <p>It
@@ -97,20 +102,22 @@ and shows the properties for the currently selected folder.<br>
 <br>
 </p>
 
-<h1>Up button in Windows Explorer</h1>
-
+<h1>Toolbar for Windows Explorer</h1>
 Windows
-Explorer in Vista doesn&#8217;t have the button that goes up one folder. The
-breadcrumbs in the address bar kind of compensate for that but not
-fully. Sometimes you just want to go up 3 folders, and counting 3
-breadcrumbs can be a bother.
-<p>To solve the problem, the Classic Explorer plugin adds a new toolbar
-that has an Up button:<br>
+Explorer in Vista doesn&#8217;t have a toolbar like the one in Windows XP. If
+you want to go to the parent folder you have to use the breadcrumbs
+bar. If you want to copy or delete a file with the mouse you have to
+right-click and look for the Delete command. The right-click menu gets
+bigger and bigger the more shell extensions you have installed, and
+finding the right command can take a while.<br>
+<p>To solve the problem, the Classic Explorer plugin adds a new toolbar:<br>
 </p>
 
-&nbsp;<img style="width: 483px; height: 125px;" alt="Explorer Toolbar" title="Explorer Toolbar" src="ClassicExplorer_files/toolbar.png"><br>
+&nbsp;<img src="ClassicExplorer_files/toolbar.png" style="width: 610px; height: 160px;" alt="Explorer Toolbar" title="Explorer Toolbar"><br>
 <br>
-Hold the <strong>Control key</strong> when clicking the Up button to open the parent folder in a new Explorer window.<br>
+<span style="font-weight: bold; color: rgb(0, 112, 192);">Hints:</span><br>
+&nbsp;&nbsp;&nbsp; - Hold the <strong>Control key</strong> when clicking the Up button to open the parent folder in a new Explorer window.<br>
+&nbsp;&nbsp;&nbsp; - Hold the <strong>Shift key</strong> when clicking the Delete button to permanently delete a file<br>
 
 <br>
 
@@ -134,10 +141,10 @@ then repeat steps 1 through 3 again.<br>
 
 <h1>Settings</h1>
 
-The second
+The last
 button in the toolbar opens up the Settings dialog box for Classic
 Explorer. From there you can enable or disable the Copy UI and the
-Alt+Enter features.<br>
+Alt+Enter features, as well as customize which buttons to show in the toolbar.<br>
 <br>
 
 <h1>Localization</h1>

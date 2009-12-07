@@ -5,6 +5,10 @@
 
 
 
+
+
+
+
   
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type"><title>Classic Start Menu</title>
   
@@ -23,9 +27,10 @@ body {
 }
 
 </style></head><body>
-<h1><a href="http://sourceforge.net/projects/classicshell/"><img style="border: 0px solid ; width: 64px; height: 64px;" alt="Classic Shell on Source Forge" title="Classic Shell on Source Forge" src="ClassicStartMenu_files/ClassicShell.png"></a>&nbsp;
-Classic Start Menu
-</h1><p>The <span style="color: rgb(79, 129, 189); font-weight: bold;">Classic Start Menu</span> is a
+<h1><a href="http://classicshell.sourceforge.net/"><img style="border: 0px solid ; width: 64px; height: 64px;" alt="Classic Shell on Source Forge" title="Classic Shell on Source Forge" src="ClassicStartMenu_files/ClassicShell.png"></a>&nbsp;
+Classic Start Menu</h1><span style="font-style: italic; color: rgb(0, 112, 192); font-weight: bold;">Version 0.9.5 (beta)</span><br>
+<br>
+<p><span style="color: rgb(79, 129, 189); font-weight: bold;">Classic Start Menu</span> is a
 clone of the original start menu, which you can find in all versions of
 Windows from 95 to Vista. It has a variety of advanced features:</p>
 
@@ -77,12 +82,16 @@ The available settings are:<br>
 
 <ul>
 
-  <li>Show Favorites, Show Log Off, Show Undock</li>
+  <li>Show Favorites, Show Documents, Show Log Off, Show Undock</li>
   <li>Expand Control Panel, Expand Network, Expand Printers</li>
-  <li>Use Small Icons</li>
-  <li>Scroll Menus</li>
   <li>Recent Documents &#8211; select how many recent documents you want to
 see</li>
+
+  <li>Use Small Icons</li>
+  <li>Scroll Menus &#8211; when the items don't fit on screen scroll the menu vertically rather than show multiple columns<br>
+</li>
+  <li>Use Current Theme &#8211; use graphical elements from the current theme<br>
+</li>
 </ul>
 <h1>
 Localization</h1>
@@ -103,7 +112,17 @@ Menu.Title = My Cool Caption</span></big><br>
 <br>
 If the caption is not set, the name of the operating system is used by
 default. It is taken from the registry key <span style="font-weight: bold; color: rgb(79, 129, 189);">HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion</span>.<br>
+<h1>Search Customization</h1>
+It is possible to change the behavior of the <span style="font-weight: bold; color: rgb(0, 112, 192);">Search -&gt; For Files and Folders</span> command. By default it runs the Windows search. You can use your own program by editing the <span style="font-weight: bold; color: rgb(0, 112, 192);">Command.SearchFiles</span> line in the <span style="font-weight: bold; color: rgb(0, 112, 192);">StartMenuL10N.ini</span> file:<br>
+<br>
 
+<big><span style="font-family: monospace; font-weight: bold;">
+[default]</span><br style="font-family: monospace; font-weight: bold;">
+<span style="font-family: monospace; font-weight: bold;">
+.....</span><br style="font-family: monospace; font-weight: bold;">
+<span style="font-family: monospace; font-weight: bold;">Command.SearchFiles = C:\Program Files\</span></big><big><span style="font-family: monospace; font-weight: bold;">CoolSearch\</span></big><big><span style="font-family: monospace; font-weight: bold;">CoolSearch.exe -cool<span style="font-family: Arial,Helvetica,sans-serif;"></span></span></big><br>
+<br>
+The command can be anything executable - an exe file, a lnk file, even a website <span style="font-style: italic;">(try http://www.google.com :-) )</span>. Environment variables like <span style="font-weight: bold; color: rgb(0, 112, 192);">%ProgramFiles%</span> or <span style="font-weight: bold; color: rgb(0, 112, 192);">%SystemRoot%</span> are also supported.<br>
 <br>
 
 </body></html>

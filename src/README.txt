@@ -1,14 +1,15 @@
 CLASSIC SHELL
+version 0.9.5 beta
 
 Classic Shell adds some missing features to Windows 7 and Vista like a
-classic start menu, Up button in Explorer and others.
+classic start menu, a toolbar for Windows Explorer and others.
 
 ///////////////////////////////////////////////////////////////////////////////
 
 1) Classic Start Menu
 
-The Classic Start Menu is a clone of the start menu from Windows 2000, XP and
-Vista that sadly is missing from Windows 7. It has a variety of advanced features:
+Classic Start Menu is a clone of the start menu from Windows 2000, XP and Vista that
+sadly is missing from Windows 7. It has a variety of advanced features:
 
 *	Drag and drop to let you organize your applications
 
@@ -38,17 +39,18 @@ Classic Explorer is a plugin for Windows Explorer that:
 *	Handles Alt+Enter in the folder panel of Windows Explorer and shows the properties
   of the selected folder
 
-*	Adds an Up button in the toolbar (for navigating to the parent folder)
+*	Adds a toolbar to Explorer for some common operations (Go to the parent folder,
+  Cut, Copy, Paste, Delete)
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
 3) The source code
 
-Classic Shell is open source, and the source code is licensed under the therms of the
+Classic Shell is open source, and the source code is licensed under the terms of the
 MIT open source license. See the LICENSE.txt file in the main directory.
 
 The latest version can be found on Source Forge:
-http://sourceforge.net/projects/classicshell/
+http://classicshell.sourceforge.net/
 
 Report any problems to ivo@roadrunner.com.

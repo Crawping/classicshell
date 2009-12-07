@@ -5,6 +5,7 @@
 
 #include "stdafx.h"
 #include "MenuContainer.h"
+#include "FNVHash.h"
 #include <algorithm>
 
 // CIDropSource - a basic IDropSource implementation. nothing to see here
@@ -210,14 +211,14 @@ HRESULT STDMETHODCALLTYPE CMenuContainer::DragOver( DWORD grfKeyState, POINTL pt
 			if (p.y<y)
 			{
 				// insert above
-				if (m_Items[index].id!=MENU_NO && (index==0 || m_Items[index-1].id!=MENU_NO))
+				if (m_Items[index].id!=MENU_NO && m_Items[index].id!=MENU_EMPTY && (index==0 || m_Items[index-1].id!=MENU_NO))
 					mark.iButton=-1;
 			}
 			else
 			{
 				// insert below
 				mark.dwFlags=TBIMHT_AFTER;
-				if (m_Items[index].id!=MENU_NO && (index==m_Items.size()-1 || m_Items[index+1].id!=MENU_NO))
+				if (m_Items[index].id!=MENU_NO && m_Items[index].id!=MENU_EMPTY && (index==m_Items.size()-1 || m_Items[index+1].id!=MENU_NO))
 					mark.iButton=-1;
 			}
 			m_DropToolbar.SendMessage(TB_SETINSERTMARK,0,(LPARAM)&mark);
@@ -297,7 +298,7 @@ HRESULT STDMETHODCALLTYPE CMenuContainer::Drop( IDataObject *pDataObj, DWORD grf
 	m_DropToolbar.SendMessage(TB_GETINSERTMARK,0,(LPARAM)&mark);
 	int before=mark.iButton;
 	if (before<0) return S_OK;
-	if (mark.dwFlags==TBIMHT_AFTER)
+	if (mark.dwFlags==TBIMHT_AFTER && (before!=0 || m_Items[0].id!=MENU_EMPTY))
 		before++;
 
 	// clear the insert mark
@@ -312,7 +313,7 @@ HRESULT STDMETHODCALLTYPE CMenuContainer::Drop( IDataObject *pDataObj, DWORD grf
 		for (std::vector<MenuItem>::const_iterator it=m_Items.begin();it!=m_Items.end();++it)
 			if (it->id==MENU_NO)
 			{
-				SortMenuItem item={it->name,it->bFolder};
+				SortMenuItem item={it->name,it->nameHash,it->bFolder};
 				items.push_back(item);
 			}
 		SortMenuItem drag=items[m_DragIndex];
@@ -342,10 +343,11 @@ HRESULT STDMETHODCALLTYPE CMenuContainer::Drop( IDataObject *pDataObj, DWORD grf
 		for (std::vector<MenuItem>::const_iterator it=m_Items.begin();it!=m_Items.end();++it)
 			if (it->id==MENU_NO)
 			{
-				SortMenuItem item={it->name,it->bFolder};
+				SortMenuItem item={it->name,it->nameHash,it->bFolder};
 				items.push_back(item);
 			}
-		items.insert(items.begin()+before,SortMenuItem());
+		SortMenuItem ins={L"",CalcFNVHash(L""),false};
+		items.insert(items.begin()+before,ins);
 		SaveItemOrder(items);
 		PostRefreshMessage();
 	}

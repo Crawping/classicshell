@@ -7,12 +7,14 @@
 struct StartMenuSettings
 {
 	DWORD ShowFavorites;
+	DWORD ShowDocuments;
 	DWORD ShowLogOff;
 	DWORD ShowUndock;
 	DWORD ExpandControlPanel;
 	DWORD ExpandNetwork;
 	DWORD ExpandPrinters;
 	DWORD UseSmallIcons;
+	DWORD UseTheme;
 	DWORD ScrollMenus;
 	DWORD RecentDocuments;
 };

@@ -91,11 +91,13 @@ public:
 		CONTAINER_NOPROGRAMS   = 0x0008, // don't show the Programs menu (for the top portion of the main menu)
 		CONTAINER_PROGRAMS     = 0x0010, // this is the Programs menu or its subfolder
 		CONTAINER_DOCUMENTS    = 0x0020, // sort by time, limit the count (for recent documents)
-		CONTAINER_ADDTOP       = 0x0040, // put standard items at the top
-		CONTAINER_DRAG         = 0x0080, // allow items to be dragged out
-		CONTAINER_DROP         = 0x0100, // allow dropping of items
-		CONTAINER_LEFT         = 0x0200, // the window is aligned on the left
-		CONTAINER_TOP          = 0x0400, // the window is aligned on the top
+		CONTAINER_LINK         = 0x0040, // this is an expanded link to a folder (always in a pager)
+		CONTAINER_ADDTOP       = 0x0080, // put standard items at the top
+		CONTAINER_DRAG         = 0x0100, // allow items to be dragged out
+		CONTAINER_DROP         = 0x0200, // allow dropping of items
+		CONTAINER_LEFT         = 0x0400, // the window is aligned on the left
+		CONTAINER_TOP          = 0x0800, // the window is aligned on the top
+		CONTAINER_THEME        = 0x1000, // use the menu theme
 	};
 
 	CMenuContainer( CMenuContainer *pParent, int options, TMenuID menuID, PIDLIST_ABSOLUTE path1, PIDLIST_ABSOLUTE path2, const CString &regName );
@@ -166,11 +168,12 @@ private:
 	{
 		TMenuID id; // MENU_NO if not a standard menu item
 		CString name;
+		unsigned int nameHash;
 		int icon;
 		int column; // index in m_Toolbars
 		int btnIndex; // button index in the toolbar
 		bool bFolder; // this is a folder - draw arrow
-		bool bStartup; // this is the Startup folder in the Programs menu
+		bool bLink; // this is a link (if a link to a folder is expanded it is always in a pager)
 		bool bDragInto; // this is a folder that can be dragged into (opens when the mouse hovers over it)
 
 		// pair of shell items. 2 items are used to combine a user folder with a common folder (I.E. user programs/common programs)
@@ -188,6 +191,15 @@ private:
 			if (btnIndex>x.btnIndex) return false;
 			if (bFolder && !x.bFolder) return true;
 			if (!bFolder && x.bFolder) return false;
+			if (bFolder)
+			{
+				const wchar_t *drive1=name.IsEmpty()?NULL:wcschr((const wchar_t*)name+1,':');
+				const wchar_t *drive2=x.name.IsEmpty()?NULL:wcschr((const wchar_t*)x.name+1,':');
+				if (drive1 && !drive2) return true;
+				if (!drive1 && drive2) return false;
+				if (drive1)
+					return drive1[-1]<drive2[-1];
+			}
 			return CompareString(LOCALE_USER_DEFAULT,LINGUISTIC_IGNORECASE,name,-1,x.name,-1)==CSTR_LESS_THAN;
 		}
 	};
@@ -195,12 +207,22 @@ private:
 	struct SortMenuItem
 	{
 		CString name;
+		unsigned int nameHash;
 		bool bFolder;
 
 		bool operator<( const SortMenuItem &x ) const
 		{
 			if (bFolder && !x.bFolder) return true;
 			if (!bFolder && x.bFolder) return false;
+			if (bFolder)
+			{
+				const wchar_t *drive1=name.IsEmpty()?NULL:wcschr((const wchar_t*)name+1,':');
+				const wchar_t *drive2=x.name.IsEmpty()?NULL:wcschr((const wchar_t*)x.name+1,':');
+				if (drive1 && !drive2) return true;
+				if (!drive1 && drive2) return false;
+				if (drive1)
+					return drive1[-1]<drive2[-1];
+			}
 			return CompareString(LOCALE_USER_DEFAULT,LINGUISTIC_IGNORECASE,name,-1,x.name,-1)==CSTR_LESS_THAN;
 		}
 	};
@@ -296,6 +318,13 @@ private:
 	static int s_MenuStyle; // the style for the menu windows
 	static bool s_bBehindTaskbar; // the main menu is behind the taskbar (when the taskbar is horizontal)
 	static bool s_bShowTopEmpty; // shows the empty item on the top menu so the user can drag items there
+	static HTHEME s_ThemeMenu; // theme to draw the menu arrow
+	static HTHEME s_ThemeList; // theme to draw the highlighted menu item
+	static COLORREF s_MenuColor;
+	static COLORREF s_MenuTextColor;
+	static COLORREF s_MenuTextHotColor;
+	static COLORREF s_MenuTextDColor;
+	static COLORREF s_MenuTextHotDColor;
 	static CMenuContainer *s_pDragSource; // the source of the current drag operation
 	static RECT s_MainRect; // area of the main monitor
 	static DWORD s_HoverTime;

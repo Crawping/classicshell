@@ -1,0 +1,27 @@
+===============================================================================
+== Version 0.9.5 beta (Dec, 2009) - few improvements:
+
+- Added option to remove the Documents menu and option to use an alternative
+  search application
+
+- Added more buttons to the toolbar - Cut, Copy, Paste, Delete
+
+- Added option for "big buttons" in the toolbar
+
+- The selected menu item is drawn using the current theme
+
+- Fixed a crash in the start menu
+
+- Fixed a problem when dropping items in an empty submenu
+
+
+===============================================================================
+== Version 0.9 beta (Nov, 2009) - first public version:
+
+- Classic start menu
+
+- Replacement for the Copy UI in Vista
+
+- Fix for Alt+Enter in Explorer
+
+- Toolbar for Explorer with Up button

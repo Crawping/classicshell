@@ -15,8 +15,14 @@ public:
 	enum
 	{
 		// toolbar command IDs
-		ID_GOUP=1,
-		ID_SETTINGS,
+		ID_SETTINGS=1,
+		ID_GOUP,
+		ID_CUT,
+		ID_COPY,
+		ID_PASTE,
+		ID_DELETE,
+
+		ID_LAST
 	};
 
 	DECLARE_WND_CLASS(L"ClassicExplorer.CBandWindow")
@@ -25,12 +31,16 @@ public:
 		MESSAGE_HANDLER( WM_CREATE, OnCreate )
 		MESSAGE_HANDLER( WM_DESTROY, OnDestroy )
 		COMMAND_ID_HANDLER( ID_GOUP, OnGoUp )
+		COMMAND_ID_HANDLER( ID_CUT, OnFileOperation )
+		COMMAND_ID_HANDLER( ID_COPY, OnFileOperation )
+		COMMAND_ID_HANDLER( ID_PASTE, OnFileOperation )
+		COMMAND_ID_HANDLER( ID_DELETE, OnFileOperation )
 		COMMAND_ID_HANDLER( ID_SETTINGS, OnSettings )
 	END_MSG_MAP()
 
-	CBandWindow( void ) { m_hWndToolbar=NULL; m_Enabled=NULL; }
+	CBandWindow( void ) { m_Enabled=NULL; }
 
-	HWND GetToolbar( void ) { return m_hWndToolbar; }
+	HWND GetToolbar( void ) { return m_Toolbar.m_hWnd; }
 	void SetBrowser( IShellBrowser *pBrowser ) { m_pBrowser=pBrowser; }
 	void UpdateToolbar( void );
 
@@ -42,10 +52,11 @@ protected:
 	LRESULT OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnDestroy( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnGoUp( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
+	LRESULT OnFileOperation( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
 	LRESULT OnSettings( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
 
 private:
-	HWND m_hWndToolbar;
+	CWindow m_Toolbar;
 	CComPtr<IShellBrowser> m_pBrowser;
 	HIMAGELIST m_Enabled;
 };

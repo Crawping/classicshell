@@ -7,12 +7,14 @@
 
 // Default settings
 const DWORD DEFAULT_SHOW_FAVORITES=0;
+const DWORD DEFAULT_SHOW_DOCUMENTS=1;
 const DWORD DEFAULT_SHOW_LOGOFF=0;
 const DWORD DEFAULT_SHOW_UNDOCK=1;
 const DWORD DEFAULT_EXPAND_CONTROLPANEL=0;
 const DWORD DEFAULT_EXPAND_NETWORK=0;
 const DWORD DEFAULT_EXPAND_PRINTERS=0;
 const DWORD DEFAULT_SMALL_ICONS=0;
+const DWORD DEFAULT_THEME=1;
 const DWORD DEFAULT_SCROLL_MENUS=0;
 const DWORD DEFAULT_RECENT_DOCUMENTS=15;
 
@@ -27,6 +29,8 @@ void ReadSettings( StartMenuSettings &settings )
 
 	if (regSettings.QueryDWORDValue(L"ShowFavorites",settings.ShowFavorites)!=ERROR_SUCCESS)
 		settings.ShowFavorites=DEFAULT_SHOW_FAVORITES;
+	if (regSettings.QueryDWORDValue(L"ShowDocuments",settings.ShowDocuments)!=ERROR_SUCCESS)
+		settings.ShowDocuments=DEFAULT_SHOW_DOCUMENTS;
 	if (regSettings.QueryDWORDValue(L"ShowLogOff",settings.ShowLogOff)!=ERROR_SUCCESS)
 		settings.ShowLogOff=DEFAULT_SHOW_LOGOFF;
 	if (regSettings.QueryDWORDValue(L"ShowUndock",settings.ShowUndock)!=ERROR_SUCCESS)
@@ -39,6 +43,8 @@ void ReadSettings( StartMenuSettings &settings )
 		settings.ExpandPrinters=DEFAULT_EXPAND_PRINTERS;
 	if (regSettings.QueryDWORDValue(L"UseSmallIcons",settings.UseSmallIcons)!=ERROR_SUCCESS)
 		settings.UseSmallIcons=DEFAULT_SMALL_ICONS;
+	if (regSettings.QueryDWORDValue(L"UseTheme",settings.UseTheme)!=ERROR_SUCCESS)
+		settings.UseTheme=DEFAULT_THEME;
 	if (regSettings.QueryDWORDValue(L"ScrollMenus",settings.ScrollMenus)!=ERROR_SUCCESS)
 		settings.ScrollMenus=DEFAULT_SCROLL_MENUS;
 	if (regSettings.QueryDWORDValue(L"RecentDocuments",settings.RecentDocuments)!=ERROR_SUCCESS)
@@ -50,22 +56,36 @@ static INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
 {
 	if (uMsg==WM_INITDIALOG)
 	{
+		HICON icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXICON),GetSystemMetrics(SM_CYICON),LR_DEFAULTCOLOR);
+		SendMessage(hwndDlg,WM_SETICON,ICON_BIG,(LPARAM)icon);
+		icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR);
+		SendMessage(hwndDlg,WM_SETICON,ICON_SMALL,(LPARAM)icon);
+
 		g_SettingsDlg=hwndDlg;
 
 		StartMenuSettings settings;
 		ReadSettings(settings);
 
 		CheckDlgButton(hwndDlg,IDC_CHECKFAVORITES,settings.ShowFavorites?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECKDOCUMENTS,settings.ShowDocuments?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKLOGOFF,settings.ShowLogOff?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKUNDOCK,settings.ShowUndock?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKCONTROLPANEL,settings.ExpandControlPanel?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKNETWORK,settings.ExpandNetwork?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKPRINTERS,settings.ExpandPrinters?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKSMALL,settings.UseSmallIcons?BST_CHECKED:BST_UNCHECKED);
+		CheckDlgButton(hwndDlg,IDC_CHECKTHEME,settings.UseTheme?BST_CHECKED:BST_UNCHECKED);
 		CheckDlgButton(hwndDlg,IDC_CHECKSCROLL,settings.ScrollMenus?BST_CHECKED:BST_UNCHECKED);
 		SetDlgItemInt(hwndDlg,IDC_EDITRECENT,settings.RecentDocuments,TRUE);
+		EnableWindow(GetDlgItem(hwndDlg,IDC_EDITRECENT),settings.ShowDocuments!=0);
 		return TRUE;
 	}
+	if (uMsg==WM_COMMAND && wParam==IDC_CHECKDOCUMENTS)
+	{
+		EnableWindow(GetDlgItem(hwndDlg,IDC_EDITRECENT),IsDlgButtonChecked(hwndDlg,IDC_CHECKDOCUMENTS)==BST_CHECKED);
+		return TRUE;
+	}
+
 	if (uMsg==WM_COMMAND && wParam==IDOK)
 	{
 		CRegKey regSettings;
@@ -73,22 +93,26 @@ static INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
 			regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicStartMenu");
 
 		DWORD ShowFavorites=(IsDlgButtonChecked(hwndDlg,IDC_CHECKFAVORITES)==BST_CHECKED)?1:0;
+		DWORD ShowDocuments=(IsDlgButtonChecked(hwndDlg,IDC_CHECKDOCUMENTS)==BST_CHECKED)?1:0;
 		DWORD ShowLogOff=(IsDlgButtonChecked(hwndDlg,IDC_CHECKLOGOFF)==BST_CHECKED)?1:0;
 		DWORD ShowUndock=(IsDlgButtonChecked(hwndDlg,IDC_CHECKUNDOCK)==BST_CHECKED)?1:0;
 		DWORD ExpandControlPanel=(IsDlgButtonChecked(hwndDlg,IDC_CHECKCONTROLPANEL)==BST_CHECKED)?1:0;
 		DWORD ExpandNetwork=(IsDlgButtonChecked(hwndDlg,IDC_CHECKNETWORK)==BST_CHECKED)?1:0;
 		DWORD ExpandPrinters=(IsDlgButtonChecked(hwndDlg,IDC_CHECKPRINTERS)==BST_CHECKED)?1:0;
 		DWORD UseSmallIcons=(IsDlgButtonChecked(hwndDlg,IDC_CHECKSMALL)==BST_CHECKED)?1:0;
+		DWORD UseTheme=(IsDlgButtonChecked(hwndDlg,IDC_CHECKTHEME)==BST_CHECKED)?1:0;
 		DWORD ScrollMenus=(IsDlgButtonChecked(hwndDlg,IDC_CHECKSCROLL)==BST_CHECKED)?1:0;
 		DWORD RecentDocuments=GetDlgItemInt(hwndDlg,IDC_EDITRECENT,NULL,TRUE);
 
 		regSettings.SetDWORDValue(L"ShowFavorites",ShowFavorites);
+		regSettings.SetDWORDValue(L"ShowDocuments",ShowDocuments);
 		regSettings.SetDWORDValue(L"ShowLogOff",ShowLogOff);
 		regSettings.SetDWORDValue(L"ShowUndock",ShowUndock);
 		regSettings.SetDWORDValue(L"ExpandControlPanel",ExpandControlPanel);
 		regSettings.SetDWORDValue(L"ExpandNetwork",ExpandNetwork);
 		regSettings.SetDWORDValue(L"ExpandPrinters",ExpandPrinters);
 		regSettings.SetDWORDValue(L"UseSmallIcons",UseSmallIcons);
+		regSettings.SetDWORDValue(L"UseTheme",UseTheme);
 		regSettings.SetDWORDValue(L"ScrollMenus",ScrollMenus);
 		regSettings.SetDWORDValue(L"RecentDocuments",RecentDocuments);
 
