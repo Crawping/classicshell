@@ -17,6 +17,29 @@ void InitClassicCopyThread( void );
 void FreeClassicCopyThread( void );
 
 bool g_bHookCopyThreads;
+static FILETIME g_IniTimestamp;
+static CRITICAL_SECTION g_IniSection;
+
+void ReadIniFile( bool bStartup )
+{
+	if (bStartup)
+		EnterCriticalSection(&g_IniSection);
+	wchar_t fname[_MAX_PATH];
+	GetModuleFileName(g_Instance,fname,_countof(fname));
+	*PathFindFileName(fname)=0;
+	wcscat_s(fname,_countof(fname),INI_PATH L"Explorer.ini");
+	WIN32_FILE_ATTRIBUTE_DATA data;
+	if (GetFileAttributesEx(fname,GetFileExInfoStandard,&data))
+	{
+		if (CompareFileTime(&g_IniTimestamp,&data.ftLastWriteTime)!=0)
+		{
+			g_IniTimestamp=data.ftLastWriteTime;
+			ParseGlobalSettings(fname);
+		}
+	}
+	if (bStartup)
+		LeaveCriticalSection(&g_IniSection);
+}
 
 // DLL Entry Point
 extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved )
@@ -30,18 +53,10 @@ extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpRe
 
 		g_Instance=hInstance;
 
-#ifdef BUILD_SETUP
-#define INI_PATH L""
-#else
-#define INI_PATH L"..\\"
-#endif
+		InitializeCriticalSection(&g_IniSection);
+		ReadIniFile(true);
 
 		wchar_t fname[_MAX_PATH];
-		GetModuleFileName(hInstance,fname,_countof(fname));
-		*PathFindFileName(fname)=0;
-		wcscat_s(fname,_countof(fname),INI_PATH L"Explorer.ini");
-		ParseGlobalSettings(fname);
-
 		GetModuleFileName(hInstance,fname,_countof(fname));
 		*PathFindFileName(fname)=0;
 		wcscat_s(fname,_countof(fname),INI_PATH L"ExplorerL10N.ini");
@@ -67,6 +82,11 @@ extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpRe
 	{
 		if (g_bHookCopyThreads)
 			FreeClassicCopyThread();
+	}
+
+	if (dwReason==DLL_PROCESS_DETACH)
+	{
+		DeleteCriticalSection(&g_IniSection);
 	}
 
 	return _AtlModule.DllMain(dwReason, lpReserved); 

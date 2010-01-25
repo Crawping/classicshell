@@ -23,7 +23,7 @@ static HWND g_Tooltip;
 static TOOLINFO g_StarButtonTool;
 static int g_HotkeyID;
 static DWORD g_Hotkey;
-
+static HHOOK g_ProgHook, g_StartHook;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -65,6 +65,9 @@ protected:
 static COwnerWindow g_Owner;
 
 ///////////////////////////////////////////////////////////////////////////////
+
+STARTMENUAPI LRESULT CALLBACK HookProgMan( int code, WPARAM wParam, LPARAM lParam );
+STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM lParam );
 
 static BOOL CALLBACK FindTooltipEnum( HWND hwnd, LPARAM lParam )
 {
@@ -260,6 +263,44 @@ STARTMENUAPI HWND ToggleStartMenu( HWND startButton, bool bKeyboard )
 	return CMenuContainer::ToggleStartMenu(startButton,bKeyboard);
 }
 
+static void InitStartMenuDLL( void )
+{
+	FindStartButton();
+	HWND progWin=FindWindowEx(NULL,NULL,L"Progman",NULL);
+	DWORD thread=GetWindowThreadProcessId(progWin,NULL);
+	g_ProgHook=SetWindowsHookEx(WH_GETMESSAGE,HookProgMan,NULL,thread);
+	g_StartHook=SetWindowsHookEx(WH_GETMESSAGE,HookStartButton,NULL,GetCurrentThreadId());
+	HWND hwnd=FindWindow(L"ClassicStartMenu.CStartHookWindow",L"StartHookWindow");
+	LoadLibrary(L"ClassicStartMenuDLL.dll"); // keep the DLL from unloading
+	if (hwnd) PostMessage(hwnd,WM_CLEAR,0,0); // tell the exe to unhook this hook
+}
+
+static DWORD WINAPI ExitThreadProc( void *param )
+{
+	Sleep(1000); // wait a second! hopefully by then the hooks will be finished and no more of our code will be executing
+	FreeLibraryAndExitThread(g_Instance,0);
+}
+
+static void CleanStartMenuDLL( void )
+{
+	// cleanup
+	if (g_Owner.m_hWnd) g_Owner.DestroyWindow();
+	CloseSettings();
+	CMenuContainer::CloseStartMenu();
+	CMenuFader::ClearAll();
+	g_IconManager.StopPreloading(true);
+	UnhookDropTarget();
+	// send WM_CLOSE to the window in ClassicStartMenu.exe to close that process
+	HWND hwnd=FindWindow(L"ClassicStartMenu.CStartHookWindow",L"StartHookWindow");
+	if (hwnd) PostMessage(hwnd,WM_CLOSE,0,0);
+	UnhookWindowsHookEx(g_ProgHook);
+	UnhookWindowsHookEx(g_StartHook);
+
+	// we need to unload the DLL here. but we can't just call FreeLibrary because it will unload the code
+	// while it is still executing. So we create a separate thread and use FreeLibraryAndExitThread
+	CreateThread(NULL,0,ExitThreadProc,NULL,0,NULL);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // WH_GETMESSAGE hook for the Progman window
@@ -434,21 +475,14 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 					wchar_t path[_MAX_PATH];
 					GetModuleFileName(g_Instance,path,_countof(path));
 					*PathFindFileName(path)=0;
-					wcscat_s(path,L"ClassicStartMenu.html");
+					wcscat_s(path,DOC_PATH L"ClassicStartMenu.html");
 					ShellExecute(NULL,NULL,path,NULL,NULL,SW_SHOWNORMAL);
 				}
 				if (res==CMD_EXIT)
 				{
-					// cleanup
-					if (g_Owner.m_hWnd) g_Owner.DestroyWindow();
-					CloseSettings();
-					CMenuContainer::CloseStartMenu();
-					CMenuFader::ClearAll();
-					g_IconManager.StopPreloading(true);
-					UnhookDropTarget();
-					// send WM_CLOSE to the window in ClassicStartMenu.exe. it will unhook everything and unload the DLL
-					HWND hwnd=FindWindow(L"ClassicStartMenu.CStartHookWindow",L"StartHookWindow");
-					if (hwnd) PostMessage(hwnd,WM_CLOSE,0,0);
+					LRESULT res=CallNextHookEx(NULL,code,wParam,lParam);
+					CleanStartMenuDLL();
+					return res; // we should exit as quickly as possible now. the DLL is about to be unloaded
 				}
 				if (res==CMD_OPEN || res==CMD_OPEN_ALL)
 				{
@@ -462,6 +496,17 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 			}
 		}
 
+	}
+	return CallNextHookEx(NULL,code,wParam,lParam);
+}
+
+// WH_GETMESSAGE hook for the explorer's GUI thread. The start menu exe uses this hook to inject code into the explorer process
+STARTMENUAPI LRESULT CALLBACK HookInject( int code, WPARAM wParam, LPARAM lParam )
+{
+	if (code==HC_ACTION && !g_StartButton)
+	{
+		MSG *msg=(MSG*)lParam;
+		InitStartMenuDLL();
 	}
 	return CallNextHookEx(NULL,code,wParam,lParam);
 }

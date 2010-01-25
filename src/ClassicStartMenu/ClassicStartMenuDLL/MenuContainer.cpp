@@ -121,7 +121,7 @@ LRESULT CALLBACK CMenuContainer::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPAR
 
 	if (uMsg==WM_MOUSEACTIVATE)
 		return MA_NOACTIVATE; // prevent activation with the mouse
-	if (uMsg==WM_GETOBJECT && lParam==OBJID_CLIENT && pOwner->m_pAccessible)
+	if (uMsg==WM_GETOBJECT && (DWORD)lParam==(DWORD)OBJID_CLIENT && pOwner->m_pAccessible)
 		return LresultFromObject(IID_IAccessible,wParam,pOwner->m_pAccessible);
 
 	if (uMsg==WM_SYSKEYDOWN)
@@ -1252,7 +1252,7 @@ LRESULT CMenuContainer::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	m_ClickTime=GetMessageTime()-10000;
 	m_ClickPos.x=m_ClickPos.y=-20;
 	m_HotPos=GetMessagePos();
-	if (FindSettingBool("EnableAccessibility",false))
+	if (FindSettingBool("EnableAccessibility",true))
 	{
 		m_pAccessible=new CMenuAccessible(this);
 		NotifyWinEvent(EVENT_SYSTEM_MENUPOPUPSTART,m_hWnd,OBJID_CLIENT,CHILDID_SELF);
@@ -2397,9 +2397,10 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 	DestroyMenu(menu);
 }
 
-CMenuFader::CMenuFader( HBITMAP bmp, int duration, RECT &rect )
+CMenuFader::CMenuFader( HBITMAP bmp, HRGN region, int duration, RECT &rect )
 {
 	m_Bitmap=bmp;
+	m_Region=region;
 	m_Duration=duration;
 	m_Rect=rect;
 	s_Faders.push_back(this);
@@ -2408,12 +2409,19 @@ CMenuFader::CMenuFader( HBITMAP bmp, int duration, RECT &rect )
 CMenuFader::~CMenuFader( void )
 {
 	if (m_Bitmap) DeleteObject(m_Bitmap);
+	if (m_Region) DeleteObject(m_Region);
 	s_Faders.erase(std::find(s_Faders.begin(),s_Faders.end(),this));
 }
 
 void CMenuFader::Create( void )
 {
-	CWindowImpl<CMenuFader>::Create(NULL,&m_Rect,NULL,WS_VISIBLE|WS_POPUP,WS_EX_TOOLWINDOW|WS_EX_TOPMOST|WS_EX_LAYERED);
+	CWindowImpl<CMenuFader>::Create(NULL,&m_Rect,NULL,WS_POPUP,WS_EX_TOOLWINDOW|WS_EX_TOPMOST|WS_EX_LAYERED);
+	ShowWindow(SW_SHOWNOACTIVATE);
+	if (m_Region)
+	{
+		SetWindowRgn(m_Region);
+		m_Region=NULL;
+	}
 	SetTimer(1,20);
 	m_Time0=GetMessageTime();
 	m_LastTime=0;
@@ -2479,13 +2487,16 @@ static DWORD WINAPI FaderThreadProc( void *param )
 
 void CMenuContainer::FadeOutItem( int index )
 {
-	DWORD fade;
-	SystemParametersInfo(SPI_GETSELECTIONFADE,NULL,&fade,0);
-	if (!fade) return;
-
+	if (s_bRTL) return; // fading doesn't work with RTL because of WM_PRINTCLIENT problems
 	int speed=MENU_FADE_SPEED;
 	const wchar_t *str=FindSetting("MenuFadeSpeed");
-	if (str)
+	if (!str)
+	{
+		DWORD fade;
+		SystemParametersInfo(SPI_GETSELECTIONFADE,NULL,&fade,0);
+		if (!fade) return;
+	}
+	else
 	{
 		speed=_wtol(str);
 		if (speed<0) speed=0;
@@ -2502,15 +2513,88 @@ void CMenuContainer::FadeOutItem( int index )
 	dib.bmiHeader.biWidth=rc.right-rc.left;
 	dib.bmiHeader.biHeight=rc.bottom-rc.top;
 	dib.bmiHeader.biPlanes=1;
-	dib.bmiHeader.biBitCount=24;
+	dib.bmiHeader.biBitCount=32;
 	dib.bmiHeader.biCompression=BI_RGB;
 
 	HDC hdc=CreateCompatibleDC(NULL);
 	unsigned int *bits;
 	HBITMAP bmp=CreateDIBSection(hdc,&dib,DIB_RGB_COLORS,(void**)&bits,NULL,0);
 	HBITMAP bmp0=(HBITMAP)SelectObject(hdc,bmp);
-
 	SetViewportOrgEx(hdc,-rc.left,-rc.top,NULL);
+
+	int *slicesX, *slicesY;
+	HBITMAP bmpSel=NULL;
+	bool b32=false;
+	if (m_pParent)
+	{
+		// sub-menu
+		if (!s_Skin.Submenu_selectionColor)
+		{
+			bmpSel=s_Skin.Submenu_selection.bmp;
+			b32=s_Skin.Submenu_selection32;
+			slicesX=s_Skin.Submenu_selection_slices_X;
+			slicesY=s_Skin.Submenu_selection_slices_Y;
+		}
+	}
+	else
+	{
+		// main menu
+		if (!s_Skin.Main_selectionColor)
+		{
+			bmpSel=s_Skin.Main_selection.bmp;
+			b32=s_Skin.Main_selection32;
+			slicesX=s_Skin.Main_selection_slices_X;
+			slicesY=s_Skin.Main_selection_slices_Y;
+		}
+	}
+	HRGN region=NULL;
+	if (bmpSel && b32)
+	{
+		HDC hdc2=CreateCompatibleDC(hdc);
+		HBITMAP bmp02=(HBITMAP)SelectObject(hdc2,bmpSel);
+		FillRect(hdc,&rc,(HBRUSH)GetStockObject(WHITE_BRUSH));
+		RECT rSrc={0,0,slicesX[0]+slicesX[1]+slicesX[2],slicesY[0]+slicesY[1]+slicesY[2]};
+		RECT rMargins={slicesX[0],slicesY[0],slicesX[2],slicesY[2]};
+		int w=dib.bmiHeader.biWidth;
+		int h=dib.bmiHeader.biHeight;
+		if (rMargins.left>w) rMargins.left=w;
+		if (rMargins.right>w) rMargins.right=w;
+		if (rMargins.top>h) rMargins.top=h;
+		if (rMargins.bottom>h) rMargins.bottom=h;
+		MarginsBlit(hdc2,hdc,rSrc,rc,rMargins);
+		SelectObject(hdc2,bmp02);
+		DeleteDC(hdc2);
+		SelectObject(hdc,bmp0);
+
+		for (int y=0;y<h;y++)
+		{
+			int minx=-1, maxx=-1;
+			int yw=y*w;
+			for (int x=0;x<w;x++)
+			{
+				if ((bits[yw+x]>>24)>=32)
+				{
+					if (minx==-1) minx=x; // first non-transparent pixel
+					if (maxx<x) maxx=x; // last non-transparent pixel
+				}
+			}
+			if (minx>=0)
+			{
+				maxx++;
+				HRGN r=CreateRectRgn(minx,y,maxx,y+1);
+				if (!region)
+					region=r;
+				else
+				{
+					CombineRgn(region,region,r,RGN_OR);
+					DeleteObject(r);
+				}
+			}
+		}
+
+		SelectObject(hdc,bmp);
+	}
+
 	SetDCBrushColor(hdc,m_pParent?s_Skin.Submenu_background:s_Skin.Main_background);
 	FillRect(hdc,&rc,(HBRUSH)GetStockObject(DC_BRUSH));
 	toolbar.SendMessage(WM_PRINTCLIENT,(WPARAM)hdc,PRF_CLIENT);
@@ -2519,7 +2603,7 @@ void CMenuContainer::FadeOutItem( int index )
 	DeleteDC(hdc);
 
 	toolbar.ClientToScreen(&rc);
-	CMenuFader *pFader=new CMenuFader(bmp,speed,rc);
+	CMenuFader *pFader=new CMenuFader(bmp,region,speed,rc);
 	CreateThread(NULL,0,FaderThreadProc,pFader,0,NULL);
 }
 
@@ -2988,7 +3072,7 @@ LRESULT CMenuContainer::OnActivate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 		if ((*it)->m_hWnd==(HWND)lParam)
 			return 0;
 
-	if ((HWND)lParam==g_OwnerWindow)
+	if (g_OwnerWindow && (HWND)lParam==g_OwnerWindow)
 		return 0;
 
 	for (std::vector<CMenuContainer*>::reverse_iterator it=s_Menus.rbegin();it!=s_Menus.rend();++it)
@@ -3086,7 +3170,7 @@ void CMenuContainer::LoadItemOrder( void )
 
 LRESULT CMenuContainer::OnGetAccObject( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
 {
-	if (lParam==OBJID_CLIENT && m_pAccessible)
+	if ((DWORD)lParam==(DWORD)OBJID_CLIENT && m_pAccessible)
 	{
 		return LresultFromObject(IID_IAccessible,wParam,m_pAccessible);
 	}

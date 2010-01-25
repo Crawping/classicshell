@@ -55,10 +55,15 @@ END_COM_MAP()
 	enum
 	{
 		FOLDERS_ALTENTER=1, // enable Alt+Enter support
+
+		FOLDERS_VISTA=0, // no change
 		FOLDERS_CLASSIC=2, // use classic XP style
-		FOLDERS_SIMPLE=4, // use simple XP style
+		FOLDERS_SIMPLE=6, // use simple XP style
+		FOLDERS_STYLE_MASK=6,
+
 		FOLDERS_NOFADE=8, // don't fade the buttons
 		FOLDERS_AUTONAVIGATE=16, // always navigate to selected folder
+		FOLDERS_FULLINDENT=32, // use full-size indent
 
 		FOLDERS_DEFAULT=FOLDERS_ALTENTER
 	};

@@ -1,4 +1,21 @@
 ===============================================================================
+== Version 0.9.10 release candidate (Jan, 2010) - customizable toolbar:
+
+- The Explorer toolbar can be customized with new icons and additional buttons
+
+- Fixed a crash bug when Windows is restarting
+
+- Fixed a crash bug when Explorer is restarting
+
+- Fixed a bug that was failing to replace the copy dialog for French, Hebrew,
+  Croatian and Slovenian languages
+
+- Added more options for the navigation pane in Explorer
+
+- Active Accessibility support is enabled by default
+
+
+===============================================================================
 == Version 0.9.9 release candidate (Jan, 2010) - more new features:
 
 - The skins in the start menu can have variations
@@ -13,7 +30,7 @@
 
 - Added "Email" button to Explorer
 
-- First try to support Active Accessibility (disabled by default for now)
+- First attempt to support Active Accessibility (disabled by default for now)
 
 
 ===============================================================================
@@ -92,7 +109,7 @@
 
 - Fixed a crash in the start menu
 
-- Fixed a problem when dropping items in an empty submenu
+- Fixed a problem when dropping items in an empty sub-menu
 
 
 ===============================================================================

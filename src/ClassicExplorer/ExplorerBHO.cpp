@@ -82,12 +82,16 @@ static LRESULT CALLBACK SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wParam, L
 		if (!(FoldersSettings&CExplorerBHO::FOLDERS_NOFADE))
 			wParam&=~TVS_EX_FADEINOUTEXPANDOS;
 
-		if (FoldersSettings&CExplorerBHO::FOLDERS_CLASSIC)
+		int indent=-1;
+		if (FoldersSettings&CExplorerBHO::FOLDERS_FULLINDENT)
+			indent=0;
+
+		if ((FoldersSettings&CExplorerBHO::FOLDERS_STYLE_MASK)!=CExplorerBHO::FOLDERS_VISTA)
 		{
 			SetWindowTheme(hWnd,NULL,NULL);
 			DWORD style=GetWindowLong(hWnd,GWL_STYLE);
 			style&=~TVS_NOHSCROLL;
-			if (FoldersSettings&CExplorerBHO::FOLDERS_SIMPLE)
+			if ((FoldersSettings&CExplorerBHO::FOLDERS_STYLE_MASK)==CExplorerBHO::FOLDERS_SIMPLE)
 			{
 				style|=TVS_SINGLEEXPAND|TVS_TRACKSELECT;
 				style&=~TVS_HASLINES;
@@ -100,7 +104,7 @@ static LRESULT CALLBACK SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wParam, L
 				HIMAGELIST images=TreeView_GetImageList(hWnd,TVSIL_NORMAL);
 				int cx, cy;
 				ImageList_GetIconSize(images,&cx,&cy);
-				TreeView_SetIndent(hWnd,cx+3);
+				indent=cx+3;
 			}
 			SetWindowLong(hWnd,GWL_STYLE,style);
 		}
@@ -108,6 +112,8 @@ static LRESULT CALLBACK SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wParam, L
 		{
 			wParam&=~TVS_EX_AUTOHSCROLL;
 		}
+		if (indent>=0)
+			TreeView_SetIndent(hWnd,indent);
 
 		if (wParam==0) return 0;
 	}
@@ -262,6 +268,9 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 
 	if (pUnkSite)
 	{
+extern void ReadIniFile( bool bStartup );
+		ReadIniFile(false);
+
 		// hook
 		if (!s_Hook)
 		{

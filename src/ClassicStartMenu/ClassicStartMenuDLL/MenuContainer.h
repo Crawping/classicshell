@@ -383,7 +383,7 @@ private:
 class CMenuFader: public CWindowImpl<CMenuFader>
 {
 public:
-	CMenuFader( HBITMAP bmp, int duration, RECT &rect );
+	CMenuFader( HBITMAP bmp, HRGN region, int duration, RECT &rect );
 	~CMenuFader( void );
 	DECLARE_WND_CLASS_EX(L"ClassicShell.CMenuFader",0,COLOR_MENU)
 
@@ -407,6 +407,7 @@ private:
 	int m_Duration;
 	int m_LastTime;
 	HBITMAP m_Bitmap;
+	HRGN m_Region;
 	RECT m_Rect;
 
 	static std::vector<CMenuFader*> s_Faders;
