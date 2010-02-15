@@ -47,6 +47,7 @@ public:
 	BEGIN_MSG_MAP( CBandWindow )
 		MESSAGE_HANDLER( WM_CREATE, OnCreate )
 		MESSAGE_HANDLER( WM_DESTROY, OnDestroy )
+		MESSAGE_HANDLER( WM_CLEAR, OnUpdateUI )
 		COMMAND_ID_HANDLER( ID_SETTINGS, OnSettings )
 		COMMAND_ID_HANDLER( ID_GOUP, OnNavigate )
 		COMMAND_ID_HANDLER( ID_GOBACK, OnNavigate )
@@ -57,7 +58,7 @@ public:
 		NOTIFY_CODE_HANDLER( TBN_GETINFOTIP, OnGetInfoTip )
 	END_MSG_MAP()
 
-	CBandWindow( void ) { m_Enabled=NULL; }
+	CBandWindow( void ) { m_Enabled=m_Disabled=NULL; }
 
 	HWND GetToolbar( void ) { return m_Toolbar.m_hWnd; }
 	void SetBrowser( IShellBrowser *pBrowser ) { m_pBrowser=pBrowser; }
@@ -70,6 +71,7 @@ protected:
 	//  LRESULT NotifyHandler(int idCtrl, LPNMHDR pnmh, BOOL& bHandled);
 	LRESULT OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnDestroy( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
+	LRESULT OnUpdateUI( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnNavigate( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
 	LRESULT OnToolbarCommand( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
 	LRESULT OnEmail( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
@@ -81,6 +83,7 @@ private:
 	CWindow m_Toolbar;
 	CComPtr<IShellBrowser> m_pBrowser;
 	HIMAGELIST m_Enabled;
+	HIMAGELIST m_Disabled;
 
 	struct StdToolbarItem
 	{
@@ -92,6 +95,8 @@ private:
 		const wchar_t *name; // default name
 		const wchar_t *command;
 		const wchar_t *iconPath;
+		const wchar_t *iconPathD;
+		std::wstring regName; // name of the registry value to check for enabled/checked state
 	};
 
 	static const StdToolbarItem s_StdItems[];
@@ -119,7 +124,8 @@ public:
 	DECLARE_REGISTRY_RESOURCEID(IDR_EXPLORERBAND)
 
 	BEGIN_SINK_MAP( CExplorerBand )
-		SINK_ENTRY_EX(1, DIID_DWebBrowserEvents2, DISPID_DOWNLOADCOMPLETE, OnDownloadComplete)
+		SINK_ENTRY_EX(1, DIID_DWebBrowserEvents2, DISPID_NAVIGATECOMPLETE2, OnNavigateComplete)
+		SINK_ENTRY_EX(1, DIID_DWebBrowserEvents2, DISPID_COMMANDSTATECHANGE, OnCommandStateChange)
 		SINK_ENTRY_EX(1, DIID_DWebBrowserEvents2, DISPID_ONQUIT, OnQuit)
 	END_SINK_MAP()
 
@@ -161,7 +167,8 @@ public:
 	STDMETHOD(ShowDW)( BOOL fShow );
 
 	// DWebBrowserEvents2
-	STDMETHOD(OnDownloadComplete)( void );
+	STDMETHOD(OnNavigateComplete)( IDispatch *pDisp, VARIANT *URL );
+	STDMETHOD(OnCommandStateChange)( long Command, VARIANT_BOOL Enable );
 	STDMETHOD(OnQuit)( void );
 
 protected:

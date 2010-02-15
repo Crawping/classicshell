@@ -135,6 +135,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpstrC
 	HWND progWin=FindWindowEx(NULL,NULL,L"Progman",NULL);
 	DWORD process;
 	DWORD thread=GetWindowThreadProcessId(progWin,&process);
+#ifdef HOOK_EXPLORER
 	wchar_t mutexName[256];
 	swprintf_s(mutexName,L"ClassicStartMenu.Mutex.%08x",process);
 	HANDLE hMutex=CreateMutex(NULL,FALSE,mutexName);
@@ -153,7 +154,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpstrC
 		}
 		return 0;
 	}
-
+#endif
 	OleInitialize(NULL);
 	g_TaskbarCreatedMsg=RegisterWindowMessage(L"TaskbarCreated");
 	ChangeWindowMessageFilter(g_TaskbarCreatedMsg,MSGFLT_ADD);

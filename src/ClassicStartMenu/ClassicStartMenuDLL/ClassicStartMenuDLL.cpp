@@ -8,6 +8,7 @@
 #include "GlobalSettings.h"
 #include "TranslationSettings.h"
 #include "Settings.h"
+#include <uxtheme.h>
 
 #define HOOK_DROPTARGET // define this to replace the IDropTarget of the start button
 
@@ -364,9 +365,10 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 
 		if ((msg->message==WM_LBUTTONDOWN || msg->message==WM_LBUTTONDBLCLK) && msg->hwnd==g_StartButton)
 		{
-			bool bShiftClick=FindSettingBool("InvertShiftClick",false);
+			const wchar_t *str=FindSetting("EnableShiftClick");
+			int shiftClick=str?_wtol(str):1;
 
-			if ((bShiftClick && (msg->wParam&MK_SHIFT)) || (!bShiftClick && !(msg->wParam&MK_SHIFT)))
+			if (shiftClick<1 || shiftClick>2 || (shiftClick==2 && (msg->wParam&MK_SHIFT)) || (shiftClick==1 && !(msg->wParam&MK_SHIFT)))
 			{
 				DWORD pos=GetMessagePos();
 				POINT pt={(short)LOWORD(pos),(short)HIWORD(pos)};
@@ -385,11 +387,13 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 			}
 		}
 
-		if ((msg->message==WM_NCLBUTTONDOWN || msg->message==WM_NCLBUTTONDBLCLK) && msg->wParam==HTCAPTION && msg->hwnd==g_TaskBar)
+		if ((msg->message==WM_NCLBUTTONDOWN || msg->message==WM_NCLBUTTONDBLCLK) && msg->hwnd==g_TaskBar
+			&& (msg->wParam==HTCAPTION || !IsAppThemed())) // HACK: in Classic mode the start menu can show up even if wParam is not HTCAPTION (most likely a bug in Windows)
 		{
-			bool bShiftClick=FindSettingBool("InvertShiftClick",false);
+			const wchar_t *str=FindSetting("EnableShiftClick");
+			int shiftClick=str?_wtol(str):1;
 
-			if ((bShiftClick && GetKeyState(VK_SHIFT)<0) || (!bShiftClick && GetKeyState(VK_SHIFT)>=0))
+			if (shiftClick<1 || shiftClick>2 || (shiftClick==2 && GetKeyState(VK_SHIFT)<0) || (shiftClick==1 && GetKeyState(VK_SHIFT)>=0))
 			{
 				DWORD pos=GetMessagePos();
 				POINT pt={(short)LOWORD(pos),(short)HIWORD(pos)};
@@ -429,9 +433,10 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 
 		if (msg->message==WM_RBUTTONUP && msg->hwnd==g_StartButton)
 		{
-			bool bShiftClick=FindSettingBool("InvertShiftClick",false);
+			const wchar_t *str=FindSetting("EnableShiftClick");
+			int shiftClick=str?_wtol(str):1;
 
-			if ((bShiftClick && (msg->wParam&MK_SHIFT)) || (!bShiftClick && !(msg->wParam&MK_SHIFT)))
+			if (shiftClick<1 || shiftClick>2 || (shiftClick==2 && (msg->wParam&MK_SHIFT)) || (shiftClick==1 && !(msg->wParam&MK_SHIFT)))
 			{
 				// additional commands for the context menu
 				enum
@@ -455,9 +460,11 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				AppendMenu(menu,MF_STRING,CMD_OPEN,FindTranslation("Menu.Open",L"&Open"));
 				AppendMenu(menu,MF_STRING,CMD_OPEN_ALL,FindTranslation("Menu.OpenAll",L"O&pen All Users"));
 				AppendMenu(menu,MF_SEPARATOR,0,0);
-				AppendMenu(menu,MF_STRING,CMD_SETTINGS,FindTranslation("Menu.MenuSettings",L"Settings"));
+				if (FindSettingBool("EnableSettings",true))
+					AppendMenu(menu,MF_STRING,CMD_SETTINGS,FindTranslation("Menu.MenuSettings",L"Settings"));
 				AppendMenu(menu,MF_STRING,CMD_HELP,FindTranslation("Menu.MenuHelp",L"Help"));
-				AppendMenu(menu,MF_STRING,CMD_EXIT,FindTranslation("Menu.MenuExit",L"Exit"));
+				if (FindSettingBool("EnableExit",true))
+					AppendMenu(menu,MF_STRING,CMD_EXIT,FindTranslation("Menu.MenuExit",L"Exit"));
 				MENUITEMINFO mii={sizeof(mii)};
 				mii.fMask=MIIM_BITMAP;
 				mii.hbmpItem=HBMMENU_POPUP_CLOSE;

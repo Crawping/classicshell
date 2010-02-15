@@ -10,284 +10,22 @@
 #include "ParseSettings.h"
 #include "GlobalSettings.h"
 #include "TranslationSettings.h"
-#include <vector>
-
-const int DEFAULT_BUTTONS=0x1FE; // buttons visible by default
-const int DEFAULT_ONLY_BUTTON=CBandWindow::ID_SETTINGS; // use this button when all buttons are hidden (there must be at least one visible button)
-
-// Dialog proc for the Settings dialog. Edits the settings and saves them to the registry
-INT_PTR CALLBACK SettingsDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
-{
-	if (uMsg==WM_INITDIALOG)
-	{
-		void *pRes=NULL;
-		HRSRC hResInfo=FindResource(g_Instance,MAKEINTRESOURCE(VS_VERSION_INFO),RT_VERSION);
-		if (hResInfo)
-		{
-			HGLOBAL hRes=LoadResource(g_Instance,hResInfo);
-			pRes=LockResource(hRes);
-		}
-		wchar_t title[100];
-		if (pRes)
-		{
-			VS_FIXEDFILEINFO *pVer=(VS_FIXEDFILEINFO*)((char*)pRes+40);
-			swprintf_s(title,L"Settings for Classic Explorer %d.%d.%d",HIWORD(pVer->dwProductVersionMS),LOWORD(pVer->dwProductVersionMS),HIWORD(pVer->dwProductVersionLS));
-		}
-		else
-			swprintf_s(title,L"Settings for Classic Explorer");
-		SetWindowText(hwndDlg,title);
-
-		HICON icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXICON),GetSystemMetrics(SM_CYICON),LR_DEFAULTCOLOR);
-		SendMessage(hwndDlg,WM_SETICON,ICON_BIG,(LPARAM)icon);
-		icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR);
-		SendMessage(hwndDlg,WM_SETICON,ICON_SMALL,(LPARAM)icon);
-
-		CRegKey regSettings;
-		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")!=ERROR_SUCCESS)
-			regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer");
-
-		DWORD EnableCopyUI, FreeSpace, FoldersSettings, BigButtons, ToolbarButtons;
-		if (regSettings.QueryDWORDValue(L"EnableCopyUI",EnableCopyUI)!=ERROR_SUCCESS)
-			EnableCopyUI=1;
-		if (regSettings.QueryDWORDValue(L"FreeSpace",FreeSpace)!=ERROR_SUCCESS)
-			FreeSpace=(LOWORD(GetVersion())==0x0106)?CExplorerBHO::SPACE_SHOW:0;
-		if (regSettings.QueryDWORDValue(L"FoldersSettings",FoldersSettings)!=ERROR_SUCCESS)
-			FoldersSettings=CExplorerBHO::FOLDERS_DEFAULT;
-		if (regSettings.QueryDWORDValue(L"BigButtons",BigButtons)!=ERROR_SUCCESS)
-			BigButtons=0;
-		if (regSettings.QueryDWORDValue(L"ToolbarButtons",ToolbarButtons)!=ERROR_SUCCESS)
-			ToolbarButtons=DEFAULT_BUTTONS|((CBandWindow::ID_LAST-1)<<24);
-
-		if (!(ToolbarButtons&0xFF000000)) ToolbarButtons|=0x07000002; // for backwards compatibility (when there were 7 buttons the the button count was not saved)
-		unsigned int mask1=(((2<<(ToolbarButtons>>24))-1)&~1); // bits to keep
-		unsigned int mask2=(((2<<CBandWindow::ID_LAST)-1)&~1)&~mask1; // bits to replace with defaults
-		ToolbarButtons=(ToolbarButtons&mask1)|(DEFAULT_BUTTONS&mask2)|((CBandWindow::ID_LAST-1)<<24);
-		if ((ToolbarButtons&0xFFFFFF)==0)
-			ToolbarButtons|=1<<DEFAULT_ONLY_BUTTON;
-
-		RECT rc1,rc2;
-		GetWindowRect(hwndDlg,&rc1);
-		GetWindowRect(GetParent(hwndDlg),&rc2);
-		OffsetRect(&rc1,(rc2.left+rc2.right)/2-(rc1.left+rc1.right)/2,(rc2.top+rc2.bottom)/2-(rc1.top+rc1.bottom)/2);
-		if (rc1.top<rc2.top) OffsetRect(&rc1,0,rc2.top-rc1.top);
-		SetWindowPos(hwndDlg,NULL,rc1.left,rc1.top,rc1.right-rc1.left,rc1.bottom-rc1.top,SWP_NOZORDER);
-		SendMessage(hwndDlg,DM_REPOSITION,0,0);
-
-		CheckDlgButton(hwndDlg,IDC_CHECKCOPY,(EnableCopyUI==1 || EnableCopyUI==2)?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKCOPYFOLDER,(EnableCopyUI&1)?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKSIZE,FreeSpace?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKBHO,(FoldersSettings&CExplorerBHO::FOLDERS_ALTENTER)?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKAUTO,(FoldersSettings&CExplorerBHO::FOLDERS_AUTONAVIGATE)?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKNOFADE,(FoldersSettings&CExplorerBHO::FOLDERS_NOFADE)?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECKOFFSET,(FoldersSettings&CExplorerBHO::FOLDERS_FULLINDENT)?BST_CHECKED:BST_UNCHECKED);
-
-		int style=(FoldersSettings&CExplorerBHO::FOLDERS_STYLE_MASK);
-		SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_ADDSTRING,0,(LPARAM)L"Windows Vista");
-		SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_ADDSTRING,0,(LPARAM)L"Windows XP Classic");
-		SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_ADDSTRING,0,(LPARAM)L"Windows XP Simple");
-		if (style==CExplorerBHO::FOLDERS_CLASSIC)
-			SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_SETCURSEL,1,0);
-		else if (style==CExplorerBHO::FOLDERS_SIMPLE)
-			SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_SETCURSEL,2,0);
-		else
-			SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_SETCURSEL,0,0);
-
-		CheckDlgButton(hwndDlg,IDC_CHECKBIG,BigButtons?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK1,(ToolbarButtons&(1<<CBandWindow::ID_GOUP))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK2,(ToolbarButtons&(1<<CBandWindow::ID_CUT))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK3,(ToolbarButtons&(1<<CBandWindow::ID_COPY))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK4,(ToolbarButtons&(1<<CBandWindow::ID_PASTE))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK5,(ToolbarButtons&(1<<CBandWindow::ID_DELETE))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK6,(ToolbarButtons&(1<<CBandWindow::ID_PROPERTIES))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK7,(ToolbarButtons&(1<<CBandWindow::ID_EMAIL))?BST_CHECKED:BST_UNCHECKED);
-		CheckDlgButton(hwndDlg,IDC_CHECK8,(ToolbarButtons&(1<<CBandWindow::ID_SETTINGS))?BST_CHECKED:BST_UNCHECKED);
-
-		if (FindSetting("ToolbarItems"))
-		{
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK1),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK2),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK3),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK4),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK5),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK6),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK7),FALSE);
-			EnableWindow(GetDlgItem(hwndDlg,IDC_CHECK8),FALSE);
-		}
-	}
-	if (uMsg==WM_INITDIALOG || (uMsg==WM_COMMAND && wParam==MAKEWPARAM(IDC_COMBOSTYLE,CBN_SELENDOK)))
-	{
-		int style=(int)SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_GETCURSEL,0,0);
-		EnableWindow(GetDlgItem(hwndDlg,IDC_CHECKNOFADE),style!=1);
-		EnableWindow(GetDlgItem(hwndDlg,IDC_CHECKOFFSET),style!=1);
-		if (uMsg==WM_COMMAND)
-			return TRUE;
-	}
-	if (uMsg==WM_INITDIALOG || (uMsg==WM_COMMAND && wParam==IDC_CHECKCOPY))
-	{
-		EnableWindow(GetDlgItem(hwndDlg,IDC_CHECKCOPYFOLDER),IsDlgButtonChecked(hwndDlg,IDC_CHECKCOPY)==BST_CHECKED);
-		if (uMsg==WM_COMMAND)
-			return TRUE;
-	}
-	if (uMsg==WM_INITDIALOG)
-		return TRUE;
-	if (uMsg==WM_COMMAND && wParam==IDOK)
-	{
-		CRegKey regSettings;
-		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")!=ERROR_SUCCESS)
-			regSettings.Create(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer");
-
-		DWORD EnableCopyUI, FreeSpace, FoldersSettings, BigButtons, ToolbarButtons;
-		if (regSettings.QueryDWORDValue(L"EnableCopyUI",EnableCopyUI)!=ERROR_SUCCESS)
-			EnableCopyUI=1;
-		if (regSettings.QueryDWORDValue(L"FreeSpace",FreeSpace)!=ERROR_SUCCESS)
-			FreeSpace=(LOWORD(GetVersion())==0x0106)?CExplorerBHO::SPACE_SHOW:0;
-		if (regSettings.QueryDWORDValue(L"FoldersSettings",FoldersSettings)!=ERROR_SUCCESS)
-			FoldersSettings=CExplorerBHO::FOLDERS_DEFAULT;
-		if (regSettings.QueryDWORDValue(L"BigButtons",BigButtons)!=ERROR_SUCCESS)
-			BigButtons=0;
-		if (regSettings.QueryDWORDValue(L"ToolbarButtons",ToolbarButtons)!=ERROR_SUCCESS)
-			ToolbarButtons=DEFAULT_BUTTONS|((CBandWindow::ID_LAST-1)<<24);
-		DWORD ToolbarButtons0=ToolbarButtons;
-		if (!(ToolbarButtons&0xFF000000)) ToolbarButtons|=0x07000002; // for backwards compatibility (when there were 7 buttons the the button count was not saved)
-		unsigned int mask1=(((2<<(ToolbarButtons>>24))-1)&~1); // bits to keep
-		unsigned int mask2=(((2<<CBandWindow::ID_LAST)-1)&~1)&~mask1; // bits to replace with defaults
-		ToolbarButtons=(ToolbarButtons&mask1)|(DEFAULT_BUTTONS&mask2)|((CBandWindow::ID_LAST-1)<<24);
-		if ((ToolbarButtons&0xFFFFFF)==0)
-			ToolbarButtons|=1<<DEFAULT_ONLY_BUTTON;
-
-		DWORD EnableCopyUI2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKCOPY)==BST_CHECKED)?2:0;
-		if (IsDlgButtonChecked(hwndDlg,IDC_CHECKCOPYFOLDER)==BST_CHECKED)
-			EnableCopyUI2=EnableCopyUI2?1:3;
-		DWORD FreeSpace2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKSIZE)==BST_CHECKED)?CExplorerBHO::SPACE_SHOW:0;
-		DWORD FoldersSettings2=0;
-		if (IsDlgButtonChecked(hwndDlg,IDC_CHECKBHO)==BST_CHECKED)
-			FoldersSettings2|=CExplorerBHO::FOLDERS_ALTENTER;
-		if (IsDlgButtonChecked(hwndDlg,IDC_CHECKAUTO)==BST_CHECKED)
-			FoldersSettings2|=CExplorerBHO::FOLDERS_AUTONAVIGATE;
-		int style=(int)SendDlgItemMessage(hwndDlg,IDC_COMBOSTYLE,CB_GETCURSEL,0,0);
-		if (style==0) FoldersSettings2|=CExplorerBHO::FOLDERS_VISTA;
-		if (style==1) FoldersSettings2|=CExplorerBHO::FOLDERS_CLASSIC;
-		if (style==2) FoldersSettings2|=CExplorerBHO::FOLDERS_SIMPLE;
-		if (IsDlgButtonChecked(hwndDlg,IDC_CHECKNOFADE)==BST_CHECKED)
-			FoldersSettings2|=CExplorerBHO::FOLDERS_NOFADE;
-		if (IsDlgButtonChecked(hwndDlg,IDC_CHECKOFFSET)==BST_CHECKED)
-			FoldersSettings2|=CExplorerBHO::FOLDERS_FULLINDENT;
-
-		DWORD BigButtons2=(IsDlgButtonChecked(hwndDlg,IDC_CHECKBIG)==BST_CHECKED)?1:0;
-		DWORD ToolbarButtons2=0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK1)==BST_CHECKED)?(1<<CBandWindow::ID_GOUP):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK2)==BST_CHECKED)?(1<<CBandWindow::ID_CUT):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK3)==BST_CHECKED)?(1<<CBandWindow::ID_COPY):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK4)==BST_CHECKED)?(1<<CBandWindow::ID_PASTE):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK5)==BST_CHECKED)?(1<<CBandWindow::ID_DELETE):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK6)==BST_CHECKED)?(1<<CBandWindow::ID_PROPERTIES):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK7)==BST_CHECKED)?(1<<CBandWindow::ID_EMAIL):0;
-		ToolbarButtons2|=(IsDlgButtonChecked(hwndDlg,IDC_CHECK8)==BST_CHECKED)?(1<<CBandWindow::ID_SETTINGS):0;
-		ToolbarButtons2|=((CBandWindow::ID_LAST-1)<<24);
-		if ((ToolbarButtons2&0xFFFFFF)==0)
-			ToolbarButtons2|=1<<DEFAULT_ONLY_BUTTON;
-
-		int res=0;
-		if (EnableCopyUI!=EnableCopyUI2)
-		{
-extern bool g_bHookCopyThreads;
-			if (!g_bHookCopyThreads && (EnableCopyUI2==1 || EnableCopyUI2==2))
-				res|=2;
-			regSettings.SetDWORDValue(L"EnableCopyUI",EnableCopyUI2);
-		}
-		if (FreeSpace!=FreeSpace2)
-		{
-			regSettings.SetDWORDValue(L"FreeSpace",FreeSpace2);
-			res|=1;
-		}
-		if (FoldersSettings!=FoldersSettings2)
-		{
-			regSettings.SetDWORDValue(L"FoldersSettings",FoldersSettings2);
-			if ((FoldersSettings^FoldersSettings2)!=CExplorerBHO::FOLDERS_ALTENTER)
-				res|=1;
-		}
-		if (BigButtons!=BigButtons2)
-		{
-			regSettings.SetDWORDValue(L"BigButtons",BigButtons2);
-			res|=1;
-		}
-		if (ToolbarButtons0!=ToolbarButtons2)
-		{
-			regSettings.SetDWORDValue(L"ToolbarButtons",ToolbarButtons2);
-			if (ToolbarButtons!=ToolbarButtons2)
-				res|=1;
-		}
-
-		EndDialog(hwndDlg,res);
-		return TRUE;
-	}
-	if (uMsg==WM_COMMAND && wParam==IDCANCEL)
-	{
-		EndDialog(hwndDlg,0);
-		return TRUE;
-	}
-	if (uMsg==WM_NOTIFY)
-	{
-		NMHDR *pHdr=(NMHDR*)lParam;
-		if (pHdr->idFrom==IDC_LINKHELP && (pHdr->code==NM_CLICK || pHdr->code==NM_RETURN))
-		{
-			wchar_t path[_MAX_PATH];
-			GetModuleFileName(g_Instance,path,_countof(path));
-			*PathFindFileName(path)=0;
-			wcscat_s(path,DOC_PATH L"ClassicExplorer.html");
-			ShellExecute(NULL,NULL,path,NULL,NULL,SW_SHOWNORMAL);
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
+#include "Settings.h"
+#include "dllmain.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
 // CBandWindow - the parent window of the toolbar
 
-static HICON LoadIcon( int iconSize, const wchar_t *path, int index, std::vector<HMODULE> &modules, HMODULE hShell32 )
-{
-	if (!path)
-		return (HICON)LoadImage(hShell32,MAKEINTRESOURCE(index),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-	wchar_t text[1024];
-	wcscpy_s(text,path);
-	DoEnvironmentSubst(text,_countof(text));
-	wchar_t *c=wcsrchr(text,',');
-	if (c)
-	{
-		// resource file
-		*c=0;
-		const wchar_t *res=c+1;
-		int idx=_wtol(res);
-		if (idx>0) res=MAKEINTRESOURCE(idx);
-		if (!text[0])
-			return (HICON)LoadImage(g_Instance,res,IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-		HMODULE hMod=GetModuleHandle(PathFindFileName(text));
-		if (!hMod)
-		{
-			hMod=LoadLibraryEx(text,NULL,LOAD_LIBRARY_AS_DATAFILE|LOAD_LIBRARY_AS_IMAGE_RESOURCE);
-			if (!hMod) return NULL;
-			modules.push_back(hMod);
-		}
-		return (HICON)LoadImage(hMod,res,IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-	}
-	else
-	{
-		return (HICON)LoadImage(NULL,text,IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR|LR_LOADFROMFILE);
-	}
-}
-
 const CBandWindow::StdToolbarItem CBandWindow::s_StdItems[]={
-	{ID_GOUP,"Toolbar.GoUp",L"Up One Level",46},
+	{ID_GOUP,"Toolbar.GoUp",L"Up One Level",46,NULL,NULL,L",2",L",3"},
 	{ID_CUT,"Toolbar.Cut",L"Cut",16762},
 	{ID_COPY,"Toolbar.Copy",L"Copy",243},
 	{ID_PASTE,"Toolbar.Paste",L"Paste",16763},
 	{ID_DELETE,"Toolbar.Delete",L"Delete",240},
 	{ID_PROPERTIES,"Toolbar.Properties",L"Properties",253},
 	{ID_EMAIL,"Toolbar.Email",L"E-mail the selected items",265},
-	{ID_SEPARATOR},
-	{ID_SETTINGS,"Toolbar.Settings",L"Classic Explorer Settings",210,NULL,NULL,L",217"},
+	{ID_SETTINGS,"Toolbar.Settings",L"Classic Explorer Settings",210,NULL,NULL,L",1"},
 };
 
 static struct
@@ -339,6 +77,9 @@ bool CBandWindow::ParseToolbarItem( const wchar_t *name, StdToolbarItem &item )
 	if (!str) return false;
 	item.iconPath=str;
 
+	swprintf_s(text,L"%s.IconDisabled",name);
+	item.iconPathD=FindSetting(text);
+
 	swprintf_s(text,L"%s.Tip",name);
 	str=FindSetting(text);
 	if (str)
@@ -378,7 +119,11 @@ void CBandWindow::ParseToolbar( DWORD enabled )
 			{
 				if (!ParseToolbarItem(token,item))
 					continue;
-				if (item.id==ID_CUSTOM) item.id=ID_CUSTOM+(int)m_Items.size();
+				if (item.id==ID_CUSTOM)
+				{
+					item.id=ID_CUSTOM+(int)m_Items.size();
+					item.regName=token;
+				}
 			}
 			m_Items.push_back(item);
 		}
@@ -433,6 +178,7 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	}
 
 	bool bName=false;
+	bool bList=FindSettingBool("ToolbarListMode",false);
 	for (std::vector<StdToolbarItem>::const_iterator it=m_Items.begin();it!=m_Items.end();++it)
 		if (it->name)
 		{
@@ -441,7 +187,7 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 		}
 
 	// create the toolbar
-	if (bName)
+	if (bName && !bList)
 		m_Toolbar=CreateWindow(TOOLBARCLASSNAME,L"",WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE,0,0,10,10,m_hWnd,(HMENU)101,g_Instance,NULL);
 	else
 		m_Toolbar=CreateWindow(TOOLBARCLASSNAME,L"",WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|TBSTYLE_LIST|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE,0,0,10,10,m_hWnd,(HMENU)101,g_Instance,NULL);
@@ -477,6 +223,7 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	else if (iconSize>128) iconSize=128;
 
 	m_Enabled=ImageList_Create(iconSize,iconSize,ILC_COLOR32|ILC_MASK|(IsLanguageRTL()?ILC_MIRROR:0),(int)m_Items.size(),2);
+	m_Disabled=ImageList_Create(iconSize,iconSize,ILC_COLOR32|ILC_MASK|(IsLanguageRTL()?ILC_MIRROR:0),(int)m_Items.size(),2);
 
 	HMODULE hShell32=GetModuleHandle(L"Shell32.dll");
 	std::vector<HMODULE> modules;
@@ -497,25 +244,34 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 			button.fsStyle=BTNS_SEP;
 		else
 		{
-			HICON hIcon=LoadIcon(iconSize,item.iconPath,item.icon,modules,hShell32);
-			if (!hIcon)
-				hIcon=(HICON)LoadImage(hShell32,MAKEINTRESOURCE(1),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
-			if (hIcon)
+			button.iBitmap=I_IMAGENONE;
+			if (!item.iconPath || _wcsicmp(item.iconPath,L"NONE")!=0)
 			{
-				button.iBitmap=ImageList_AddIcon(m_Enabled,hIcon);
-				DestroyIcon(hIcon);
+				HICON hIcon=LoadIcon(iconSize,item.iconPath,item.icon,modules,hShell32);
+				if (!hIcon)
+					hIcon=(HICON)LoadImage(hShell32,MAKEINTRESOURCE(1),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
+				if (hIcon)
+				{
+					button.iBitmap=ImageList_AddIcon(m_Enabled,hIcon);
+					HICON hIcon2=item.iconPathD?LoadIcon(iconSize,item.iconPathD,0,modules,hShell32):NULL;
+					if (!hIcon2)
+						hIcon2=CreateDisabledIcon(hIcon,iconSize);
+					int idx=ImageList_AddIcon(m_Disabled,hIcon2);
+					ATLASSERT(button.iBitmap==idx);
+					DestroyIcon(hIcon);
+					DestroyIcon(hIcon2);
+				}
 			}
-			else
-				button.iBitmap=I_IMAGENONE;
 
-			button.fsState=TBSTATE_ENABLED;
+			button.fsState=(item.id!=ID_SETTINGS || FindSettingBool("EnableSettings",true))?TBSTATE_ENABLED:0;
 			button.fsStyle=BTNS_BUTTON|BTNS_NOPREFIX;
 			if (!bSame)
 				button.fsStyle|=BTNS_AUTOSIZE;
-			if (bName)
+			if (item.name)
+			{
+				button.fsStyle|=BTNS_SHOWTEXT;
 				button.iString=(INT_PTR)item.name;
-			else
-				button.iString=(INT_PTR)item.tip;
+			}
 		}
 	}
 
@@ -525,14 +281,39 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	// add buttons
 	HIMAGELIST old=(HIMAGELIST)m_Toolbar.SendMessage(TB_SETIMAGELIST,0,(LPARAM)m_Enabled);
 	if (old) ImageList_Destroy(old);
+	old=(HIMAGELIST)m_Toolbar.SendMessage(TB_SETDISABLEDIMAGELIST,0,(LPARAM)m_Disabled);
+	if (old) ImageList_Destroy(old);
 	m_Toolbar.SendMessage(TB_ADDBUTTONS,buttons.size(),(LPARAM)&buttons[0]);
+	SendMessage(WM_CLEAR);
 	return 0;
 }
 
 LRESULT CBandWindow::OnDestroy( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
 {
 	ImageList_Destroy(m_Enabled);
+	ImageList_Destroy(m_Disabled);
 	bHandled=FALSE;
+	return 0;
+}
+
+LRESULT CBandWindow::OnUpdateUI( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
+{
+	// update the state of the custom buttons based on the registry settings
+	CRegKey regSettings;
+	if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
+	{
+		for (std::vector<StdToolbarItem>::const_iterator it=m_Items.begin();it!=m_Items.end();++it)
+		{
+			if (!it->regName.empty())
+			{
+				DWORD val;
+				if (regSettings.QueryDWORDValue(it->regName.c_str(),val)!=ERROR_SUCCESS)
+					val=0;
+				m_Toolbar.SendMessage(TB_ENABLEBUTTON,it->id,(val&1)?0:1);
+				m_Toolbar.SendMessage(TB_CHECKBUTTON,it->id,(val&2)?1:0);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -727,11 +508,7 @@ LRESULT CBandWindow::OnSettings( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL&
 	if (GetKeyState(VK_SHIFT)<0)
 		*(int*)0=0; // force a crash if Shift is pressed. Makes it easy to restart explorer.exe
 #endif
-	INT_PTR res=DialogBox(g_Instance,MAKEINTRESOURCE(IDD_SETTINGS),m_hWnd,SettingsDlgProc);
-	if (res&2)
-		MessageBox(L"You need to log off and back on for the new settings to take effect.",L"Classic Explorer");
-	else if (res&1)
-		MessageBox(L"The new settings will take effect the next time you open an Explorer window.",L"Classic Explorer");
+	ShowSettings(m_hWnd);
 	return TRUE;
 }
 
@@ -747,39 +524,8 @@ LRESULT CBandWindow::OnRClick( int idCtrl, LPNMHDR pnmh, BOOL& bHandled )
 			return 0;
 	}
 	m_Toolbar.ClientToScreen(&pt);
-	HMENU menu=CreatePopupMenu();
-	AppendMenu(menu,MF_STRING,ID_SETTINGS,FindTranslation("Toolbar.Settings",L"Classic Explorer Settings"));
-	HBITMAP shellBmp=NULL;
-	int size=16;
-	BITMAPINFO bi={0};
-	bi.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
-	bi.bmiHeader.biWidth=bi.bmiHeader.biHeight=size;
-	bi.bmiHeader.biPlanes=1;
-	bi.bmiHeader.biBitCount=32;
-	HDC hdc=CreateCompatibleDC(NULL);
-	RECT rc={0,0,size,size};
-	HICON icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,size,size,LR_DEFAULTCOLOR);
-	if (icon)
-	{
-		shellBmp=CreateDIBSection(hdc,&bi,DIB_RGB_COLORS,NULL,NULL,0);
-		HGDIOBJ bmp0=SelectObject(hdc,shellBmp);
-		FillRect(hdc,&rc,(HBRUSH)GetStockObject(BLACK_BRUSH));
-		DrawIconEx(hdc,0,0,icon,size,size,0,NULL,DI_NORMAL);
-		SelectObject(hdc,bmp0);
-		DeleteObject(icon);
-
-		MENUITEMINFO mii={sizeof(mii)};
-		mii.fMask=MIIM_BITMAP;
-		mii.hbmpItem=shellBmp;
-		SetMenuItemInfo(menu,ID_SETTINGS,FALSE,&mii);
-	}
-	DeleteDC(hdc);
-
-	DWORD pos=GetMessagePos();
-	TrackPopupMenu(menu,0,pt.x,pt.y,0,m_hWnd,NULL);
-	DestroyMenu(menu);
-	if (shellBmp) DeleteObject(shellBmp);
-	return 0;
+	ShowSettingsMenu(m_hWnd,pt.x,pt.y);
+	return 1;
 }
 
 LRESULT CBandWindow::OnGetInfoTip( int idCtrl, LPNMHDR pnmh, BOOL& bHandled )
@@ -1024,10 +770,23 @@ extern void ReadIniFile( bool bStartup );
 	return S_OK;
 }
 
-STDMETHODIMP CExplorerBand::OnDownloadComplete( void )
+STDMETHODIMP CExplorerBand::OnNavigateComplete( IDispatch *pDisp, VARIANT *URL )
 {
 	// this is called when the current folder changes. disable the Up button if this is the desktop folder
 	m_BandWindow.UpdateToolbar();
+	return S_OK;
+}
+
+STDMETHODIMP CExplorerBand::OnCommandStateChange( long Command, VARIANT_BOOL Enable )
+{
+	if (Command==CSC_NAVIGATEFORWARD)
+	{
+		SendMessage(m_BandWindow.GetToolbar(),TB_ENABLEBUTTON,CBandWindow::ID_GOFORWARD,Enable?1:0);
+	}
+	if (Command==CSC_NAVIGATEBACK)
+	{
+		SendMessage(m_BandWindow.GetToolbar(),TB_ENABLEBUTTON,CBandWindow::ID_GOBACK,Enable?1:0);
+	}
 	return S_OK;
 }
 

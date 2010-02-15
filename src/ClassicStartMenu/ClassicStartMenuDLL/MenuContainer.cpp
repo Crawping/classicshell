@@ -70,6 +70,7 @@ static StdMenuOption g_StdOptions[]=
 	{MENU_PRINTERS,MENU_ENABLED}, // MENU_EXPANDED from settings, check policy
 	{MENU_TASKBAR,MENU_ENABLED}, // check policy
 	{MENU_FEATURES,MENU_ENABLED}, // no setting (prevents the Programs and Features from expanding), check policy (for control panel)
+	{MENU_CLASSIC_SETTINGS,MENU_ENABLED}, // MENU_ENABLED from ini file
 	{MENU_SEARCH,MENU_ENABLED}, // check policy
 	{MENU_SEARCH_PRINTER,MENU_NONE}, // MENU_ENABLED if Active Directory is available
 	{MENU_SEARCH_COMPUTERS,MENU_NONE}, // MENU_ENABLED if Active Directory is available, check policy
@@ -97,7 +98,8 @@ bool CMenuContainer::s_bKeyboardCues=false;
 bool CMenuContainer::s_bExpandRight=true;
 bool CMenuContainer::s_bBehindTaskbar=true;
 bool CMenuContainer::s_bShowTopEmpty=false;
-bool CMenuContainer::s_bNoEditMenu=false;
+bool CMenuContainer::s_bNoDragDrop=false;
+bool CMenuContainer::s_bNoContextMenu=false;
 bool CMenuContainer::s_bExpandLinks=false;
 char CMenuContainer::s_bActiveDirectory=-1;
 CMenuContainer *CMenuContainer::s_pDragSource=NULL;
@@ -2925,7 +2927,7 @@ LRESULT CMenuContainer::OnTimer( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& 
 // Handle right-click and the menu keyboard button
 LRESULT CMenuContainer::OnContextMenu( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
 {
-	if (s_bNoEditMenu) return 0;
+	if (s_bNoContextMenu) return 0;
 	CWindow toolbar=(HWND)wParam;
 	if (toolbar.m_hWnd==m_Pager.m_hWnd)
 		toolbar=m_Toolbars[0];
@@ -3338,6 +3340,9 @@ HWND CMenuContainer::ToggleStartMenu( HWND startButton, bool bKeyboard )
 			case MENU_FEATURES:
 				g_StdOptions[i].options=(!bNoSetFolders && !SHRestricted(REST_NOCONTROLPANEL))?MENU_ENABLED:0;
 				break;
+			case MENU_CLASSIC_SETTINGS:
+				g_StdOptions[i].options=FindSettingBool("EnableSettings",true)?MENU_ENABLED:0;
+				break;
 			case MENU_SEARCH:
 				g_StdOptions[i].options=FindSettingBool("ShowSearch",!SHRestricted(REST_NOFIND))?MENU_ENABLED:0;
 				break;
@@ -3395,7 +3400,9 @@ HWND CMenuContainer::ToggleStartMenu( HWND startButton, bool bKeyboard )
 		}
 	}	
 
-	s_bNoEditMenu=SHRestricted(REST_NOCHANGESTARMENU)!=0;
+	bool bAllowEdit=SHRestricted(REST_NOCHANGESTARMENU)==0;
+	s_bNoDragDrop=!FindSettingBool("EnableDragDrop",bAllowEdit);
+	s_bNoContextMenu=!FindSettingBool("EnableContextMenu",bAllowEdit);
 	s_bKeyboardCues=bKeyboard;
 
 	// make sure the menu stays on the same monitor as the start button

@@ -355,7 +355,8 @@ private:
 	static bool s_bExpandRight; // prefer expanding submenus to the right
 	static bool s_bBehindTaskbar; // the main menu is behind the taskbar (when the taskbar is horizontal)
 	static bool s_bShowTopEmpty; // shows the empty item on the top menu so the user can drag items there
-	static bool s_bNoEditMenu; // disables drag/drop and the context menu
+	static bool s_bNoDragDrop; // disables drag/drop
+	static bool s_bNoContextMenu; // disables the context menu
 	static bool s_bExpandLinks; // expand links to folders
 	static char s_bActiveDirectory; // the Active Directory services are available (-1 - uninitialized)
 	static CMenuContainer *s_pDragSource; // the source of the current drag operation
