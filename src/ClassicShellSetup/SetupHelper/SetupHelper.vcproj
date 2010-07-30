@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="BackupInis"
-	ProjectGUID="{8E93C520-8F2E-4DD4-B1A2-F93EBC486609}"
-	RootNamespace="BackupInis"
+	Name="SetupHelper"
+	ProjectGUID="{E1017135-9916-4B11-9AC5-1EC0BD8F8CD6}"
+	RootNamespace="SetupHelper"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -41,6 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="..\..\StringUtils"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -114,6 +115,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
+				WholeProgramOptimization="false"
+				AdditionalIncludeDirectories="..\..\StringUtils"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -137,6 +140,7 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				LinkTimeCodeGeneration="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -166,7 +170,15 @@
 	</References>
 	<Files>
 		<File
-			RelativePath=".\BackupInis.cpp"
+			RelativePath=".\resource.h"
+			>
+		</File>
+		<File
+			RelativePath=".\SetupHelper.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\SetupHelper.rc"
 			>
 		</File>
 	</Files>
