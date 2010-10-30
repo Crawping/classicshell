@@ -7,8 +7,9 @@
 #include <atlcomcli.h>
 #include <dwmapi.h>
 #include <utility>
-#include "GlobalSettings.h"
-#include "TranslationSettings.h"
+#include "Translations.h"
+#include "Settings.h"
+#include "ResourceHelper.h"
 #include "dllmain.h"
 
 static wchar_t g_TitleMove[256];
@@ -263,16 +264,8 @@ void CClassicCopyFile::GetFileInfo( IAccessible *pAcc, bool bSrc )
 	wchar_t path[_MAX_PATH];
 	_wmakepath_s(path,NULL,dir+len1+2,fname,NULL);
 
-	// get file icon
-	SHFILEINFO info;
-	memset(&info,0,sizeof(info));
-	if (!SHGetFileInfo(path,0,&info,sizeof(info),SHGFI_ICON|SHGFI_LARGEICON)) return;
-
-	if (bSrc)
-		m_SrcIcon=info.hIcon;
-	else
+	if (!bSrc)
 	{
-		m_DstIcon=info.hIcon;
 		DWORD attrib=GetFileAttributes(path);
 		if (attrib!=INVALID_FILE_ATTRIBUTES)
 		{
@@ -280,6 +273,29 @@ void CClassicCopyFile::GetFileInfo( IAccessible *pAcc, bool bSrc )
 			if (attrib&FILE_ATTRIBUTE_SYSTEM) m_bSystem=true;
 		}
 	}
+
+	// get file icon
+	HICON hIcon=NULL;
+	PIDLIST_ABSOLUTE pidl=NULL;
+	SFGAOF flags=0;
+	if (SUCCEEDED(SHParseDisplayName(path,NULL,&pidl,0,&flags)) && pidl)
+	{
+		hIcon=LoadIcon(GetSystemMetrics(SM_CXICON),pidl);
+		if (!hIcon)
+		{
+			SHFILEINFO info;
+			memset(&info,0,sizeof(info));
+			if (SHGetFileInfo((LPCWSTR)pidl,0,&info,sizeof(info),SHGFI_ICON|SHGFI_LARGEICON|SHGFI_PIDL))
+				hIcon=info.hIcon;
+		}
+		ILFree(pidl);
+	}
+	if (!hIcon) return;
+
+	if (bSrc)
+		m_SrcIcon=hIcon;
+	else
+		m_DstIcon=hIcon;
 }
 
 const int WM_BRINGFOREGROUND=WM_USER+11;
@@ -288,47 +304,47 @@ INT_PTR CALLBACK CClassicCopyFile::DialogProc( HWND hwndDlg, UINT uMsg, WPARAM w
 {
 	if (uMsg==WM_INITDIALOG)
 	{
-		SetWindowText(hwndDlg,FindTranslation("Copy.Title",L"Confirm File Replace"));
+		SetWindowText(hwndDlg,FindTranslation(L"Copy.Title",L"Confirm File Replace"));
 		CClassicCopyFile *pThis=(CClassicCopyFile*)lParam;
 		wchar_t text[_MAX_PATH*2];
 		if (pThis->m_bSystem)
 		{
-			Sprintf(text,_countof(text),FindTranslation("Copy.SubtitleSys",L"This folder already contains a system file named '%s'."),pThis->m_FileName);
-			if (_wtol(FindSetting("OverwriteAlertLevel",L""))>=1)
+			Sprintf(text,_countof(text),FindTranslation(L"Copy.SubtitleSys",L"This folder already contains a system file named '%s'."),pThis->m_FileName);
+			if (GetSettingInt(L"OverwriteAlertLevel")>=1)
 				PlaySound(L".Default",NULL,SND_APPLICATION|SND_ALIAS|SND_ASYNC|SND_NODEFAULT|SND_SYSTEM);
 		}
 		else if (pThis->m_bReadOnly)
 		{
-			Sprintf(text,_countof(text),FindTranslation("Copy.SubtitleRO",L"This folder already contains a read-only file named '%s'."),pThis->m_FileName);
-			if (_wtol(FindSetting("OverwriteAlertLevel",L""))>=2)
+			Sprintf(text,_countof(text),FindTranslation(L"Copy.SubtitleRO",L"This folder already contains a read-only file named '%s'."),pThis->m_FileName);
+			if (GetSettingInt(L"OverwriteAlertLevel")>=2)
 				PlaySound(L".Default",NULL,SND_APPLICATION|SND_ALIAS|SND_ASYNC|SND_NODEFAULT|SND_SYSTEM);
 		}
 		else
-			Sprintf(text,_countof(text),FindTranslation("Copy.Subtitle",L"This folder already contains a file named '%s'."),pThis->m_FileName);
+			Sprintf(text,_countof(text),FindTranslation(L"Copy.Subtitle",L"This folder already contains a file named '%s'."),pThis->m_FileName);
 		SetDlgItemText(hwndDlg,IDC_STATICFNAME,text);
 
 		// load icon for file conflict (146) from Shell32.dll
 		HMODULE hShell32=GetModuleHandle(L"Shell32.dll");
 		pThis->m_Icon=LoadIcon(hShell32,MAKEINTRESOURCE(146));
 		if (pThis->m_Icon)
-			SendDlgItemMessage(hwndDlg,IDC_STATICICON,STM_SETICON,(LPARAM)pThis->m_Icon,0);
+			SendDlgItemMessage(hwndDlg,IDC_STATICICON1,STM_SETICON,(LPARAM)pThis->m_Icon,0);
 
 		// set the localized text
-		SetDlgItemText(hwndDlg,IDC_STATICPROMPT1,FindTranslation("Copy.Prompt1",L"Do you want to replace the existing file:"));
+		SetDlgItemText(hwndDlg,IDC_STATICPROMPT1,FindTranslation(L"Copy.Prompt1",L"Do you want to replace the existing file:"));
 		SetDlgItemText(hwndDlg,IDC_STATICDSTSIZE,pThis->m_DstSize);
 		SetDlgItemText(hwndDlg,IDC_STATICDSTTIME,pThis->m_DstTime);
-		SetDlgItemText(hwndDlg,IDC_STATICPROMPT2,FindTranslation("Copy.Prompt2",L"with this one?"));
+		SetDlgItemText(hwndDlg,IDC_STATICPROMPT2,FindTranslation(L"Copy.Prompt2",L"with this one?"));
 		SendDlgItemMessage(hwndDlg,IDC_STATICDSTICON,STM_SETICON,(LPARAM)pThis->m_DstIcon,0);
 		SetDlgItemText(hwndDlg,IDC_STATICSRCSIZE,pThis->m_SrcSize);
 		SetDlgItemText(hwndDlg,IDC_STATICSRCTIME,pThis->m_SrcTime);
 		SendDlgItemMessage(hwndDlg,IDC_STATICSRCICON,STM_SETICON,(LPARAM)pThis->m_SrcIcon,0);
-		SetDlgItemText(hwndDlg,IDOK,FindTranslation("Copy.Yes",L"&Yes"));
-		SetDlgItemText(hwndDlg,IDNO,FindTranslation("Copy.No",L"&No"));
+		SetDlgItemText(hwndDlg,IDOK,FindTranslation(L"Copy.Yes",L"&Yes"));
+		SetDlgItemText(hwndDlg,IDNO,FindTranslation(L"Copy.No",L"&No"));
 		if (GetDlgItem(hwndDlg,IDYES))
-			SetDlgItemText(hwndDlg,IDYES,FindTranslation("Copy.YesAll",L"Yes to &All"));
+			SetDlgItemText(hwndDlg,IDYES,FindTranslation(L"Copy.YesAll",L"Yes to &All"));
 		if (GetDlgItem(hwndDlg,IDCANCEL))
-			SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation("Copy.Cancel",L"Cancel"));
-		Sprintf(text,_countof(text),L"<a>%s</a>",FindTranslation("Copy.More",L"&More..."));
+			SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation(L"Copy.Cancel",L"Cancel"));
+		Sprintf(text,_countof(text),L"<a>%s</a>",FindTranslation(L"Copy.More",L"&More..."));
 		SetDlgItemText(hwndDlg,IDC_LINKMORE,text);
 		PostMessage(hwndDlg,WM_BRINGFOREGROUND,0,0);
 		return TRUE;
@@ -440,7 +456,7 @@ INT_PTR CALLBACK CClassicCopyFolder::DialogProc( HWND hwndDlg, UINT uMsg, WPARAM
 {
 	if (uMsg==WM_INITDIALOG)
 	{
-		SetWindowText(hwndDlg,FindTranslation("Folder.Title",L"Confirm Folder Replace"));
+		SetWindowText(hwndDlg,FindTranslation(L"Folder.Title",L"Confirm Folder Replace"));
 		CClassicCopyFolder *pThis=(CClassicCopyFolder*)lParam;
 		wchar_t text[2048];
 		// find the link control and get its text
@@ -450,23 +466,23 @@ INT_PTR CALLBACK CClassicCopyFolder::DialogProc( HWND hwndDlg, UINT uMsg, WPARAM
 		else
 			text[0]=0;
 		Strcat(text,_countof(text),L"\r\n\r\n");
-		Strcat(text,_countof(text),FindTranslation("Folder.Prompt",L"Do you still want to move or copy the folder?"));
+		Strcat(text,_countof(text),FindTranslation(L"Folder.Prompt",L"Do you still want to move or copy the folder?"));
 		SetDlgItemText(hwndDlg,IDC_STATICFNAME,text);
 
 		// load icon for file conflict (146) from Shell32.dll
 		HMODULE hShell32=GetModuleHandle(L"Shell32.dll");
 		pThis->m_Icon=LoadIcon(hShell32,MAKEINTRESOURCE(146));
 		if (pThis->m_Icon)
-			SendDlgItemMessage(hwndDlg,IDC_STATICICON,STM_SETICON,(LPARAM)pThis->m_Icon,0);
+			SendDlgItemMessage(hwndDlg,IDC_STATICICON1,STM_SETICON,(LPARAM)pThis->m_Icon,0);
 
 		// set the localized text
-		SetDlgItemText(hwndDlg,IDOK,FindTranslation("Copy.Yes",L"&Yes"));
-		SetDlgItemText(hwndDlg,IDNO,FindTranslation("Copy.No",L"&No"));
+		SetDlgItemText(hwndDlg,IDOK,FindTranslation(L"Copy.Yes",L"&Yes"));
+		SetDlgItemText(hwndDlg,IDNO,FindTranslation(L"Copy.No",L"&No"));
 		if (GetDlgItem(hwndDlg,IDYES))
-			SetDlgItemText(hwndDlg,IDYES,FindTranslation("Copy.YesAll",L"Yes to &All"));
+			SetDlgItemText(hwndDlg,IDYES,FindTranslation(L"Copy.YesAll",L"Yes to &All"));
 		if (GetDlgItem(hwndDlg,IDCANCEL))
-			SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation("Copy.Cancel",L"Cancel"));
-		Sprintf(text,_countof(text),L"<a>%s</a>",FindTranslation("Copy.More",L"&More..."));
+			SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation(L"Copy.Cancel",L"Cancel"));
+		Sprintf(text,_countof(text),L"<a>%s</a>",FindTranslation(L"Copy.More",L"&More..."));
 		SetDlgItemText(hwndDlg,IDC_LINKMORE,text);
 		PostMessage(hwndDlg,WM_BRINGFOREGROUND,0,0);
 		return TRUE;
@@ -546,12 +562,7 @@ static LRESULT CALLBACK WindowProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			if (_wcsicmp(title,g_TitleMove)==0 || _wcsicmp(title,g_TitleCopy)==0)
 			{
 				// file UI
-				DWORD EnableFileUI=FILEUI_DEFAULT;
-				CRegKey regSettings;
-				if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
-					regSettings.QueryDWORDValue(L"EnableFileUI",EnableFileUI);
-
-				if (EnableFileUI&FILEUI_FILE)
+				if (GetSettingBool(L"ReplaceFileUI"))
 				{
 					CComPtr<IAccessible> pAcc;
 					HRESULT h=AccessibleObjectFromWindow(hWnd,OBJID_WINDOW,IID_IAccessible,(void**)&pAcc);
@@ -569,12 +580,7 @@ static LRESULT CALLBACK WindowProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			else if (_wcsicmp(title,g_TitleFolder)==0)
 			{
 				// folder UI
-				DWORD EnableFileUI=FILEUI_DEFAULT;
-				CRegKey regSettings;
-				if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
-					regSettings.QueryDWORDValue(L"EnableFileUI",EnableFileUI);
-
-				if (EnableFileUI&FILEUI_FOLDER)
+				if (GetSettingBool(L"ReplaceFolderUI"))
 				{
 					CClassicCopyFolder copy;
 					if (copy.Run(hWnd))
@@ -587,28 +593,22 @@ static LRESULT CALLBACK WindowProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			else
 			{
 				// look for progress bar
-				DWORD EnableFileUI=FILEUI_DEFAULT;
-				CRegKey regSettings;
-				if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
-					regSettings.QueryDWORDValue(L"EnableFileUI",EnableFileUI);
-
-				if (EnableFileUI&FILEUI_MORE)
+				if (GetSettingBool(L"EnableMore"))
 				{
 					HWND progress=FindChildWindow(hWnd,PROGRESS_CLASS);
 					if (progress)
 					{
-						int delay=0;
-						const wchar_t *str=FindSetting("MoreProgressDelay");
-						if (str)
+						bool bDef;
+						int delay=GetSettingInt(L"MoreProgressDelay",bDef);
+						if (bDef)
 						{
-							delay=_wtol(str);
-							if (delay<0) delay=0;
-						}
-						else if (LOWORD(GetVersion())!=0x0006)
-						{
-							BOOL comp;
-							if (SUCCEEDED(DwmIsCompositionEnabled(&comp)) && comp)
-								delay=500;
+							delay=0;
+							if (LOWORD(GetVersion())!=0x0006)
+							{
+								BOOL comp;
+								if (SUCCEEDED(DwmIsCompositionEnabled(&comp)) && comp)
+									delay=500;
+							}
 						}
 						SetTimer(hWnd,'CLEX',delay,NULL);
 						return DefSubclassProc(hWnd,uMsg,wParam,lParam);

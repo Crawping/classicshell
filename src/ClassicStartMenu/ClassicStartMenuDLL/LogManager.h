@@ -5,7 +5,7 @@
 
 // LogManager.h - logging functionality (for debugging)
 // Logs different events in the start menu
-// Turn it on by setting the LogLevel setting in StartMenu.ini
+// Turn it on by setting the LogLevel setting in the registry
 // The logging is consuming very little resources when it is turned off
 
 // TLogLevel - Different logging levels. When an event of certain level is generated, it will be logged if the event level

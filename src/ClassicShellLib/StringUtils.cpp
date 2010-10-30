@@ -375,3 +375,31 @@ int WcsToMbs( char *dst, int size, const wchar_t *src )
 #endif
 }
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+const wchar_t *GetToken( const wchar_t *text, wchar_t *token, int size, const wchar_t *separators )
+{
+	while (*text && wcschr(separators,*text))
+		text++;
+	const wchar_t *c1=text,*c2;
+	if (text[0]=='\"')
+	{
+		c1++;
+		c2=wcschr(c1,'\"');
+	}
+	else
+	{
+		c2=c1;
+		while (*c2!=0 && !wcschr(separators,*c2))
+			c2++;
+	}
+	if (!c2) c2=text+wcslen(text);
+	int l=(int)(c2-c1);
+	if (l>size-1) l=size-1;
+	memcpy(token,c1,l*2);
+	token[l]=0;
+
+	if (*c2) return c2+1;
+	else return c2;
+}

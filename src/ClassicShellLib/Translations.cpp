@@ -1,22 +1,23 @@
 // Classic Shell (c) 2009-2010, Ivo Beltchev
 // The sources for Classic Shell are distributed under the MIT open source license
 
-#include "TranslationSettings.h"
-#include "ParseSettings.h"
+#include "SettingsParser.h"
 
-static CSettingsParser g_Settings;
+static CSettingsParser g_Translations;
+static CSettingsParser g_TranslationOverrides;
 static bool g_bRTL;
 
 // Parses the settings from an ini file. Supports UTF16, UTF8 or ANSI files
+// Use forceLang for force a specific language
 void ParseTranslations( const wchar_t *fname, const wchar_t *forceLang )
 {
-	g_Settings.Reset();
+	g_Translations.Reset();
 
-	if (!g_Settings.LoadText(fname)) return;
-	g_Settings.ParseText();
+	if (!g_Translations.LoadText(fname)) return;
+	g_Translations.ParseText();
 
 	wchar_t languages[100]={0};
-	if (forceLang)
+	if (forceLang && *forceLang)
 	{
 		int len=(int)wcslen(forceLang);
 		if (len>5) len=5;
@@ -32,7 +33,7 @@ void ParseTranslations( const wchar_t *fname, const wchar_t *forceLang )
 		languages[len+7]=0;
 	}
 
-	g_Settings.FilterLanguages(languages);
+	g_Translations.FilterLanguages(languages);
 
 	// Checks for right-to-left languages
 	g_bRTL=false;
@@ -50,15 +51,23 @@ void ParseTranslations( const wchar_t *fname, const wchar_t *forceLang )
 	}
 }
 
-// Returns a setting with the given name. If no setting is found, returns def
-const wchar_t *FindTranslation( const char *name, const wchar_t *def )
+// Loads text overrides from the given module. They must be in a "L10N" resource with ID=1
+void LoadTranslationOverrides( HMODULE hModule )
 {
-	return g_Settings.FindSetting(name,def);
+	HRSRC hResInfo=FindResource(hModule,MAKEINTRESOURCE(1),L"L10N");
+	if (hResInfo)
+	{
+		g_TranslationOverrides.LoadText(hModule,hResInfo);
+		g_TranslationOverrides.ParseText();
+	}
 }
 
+// Returns a setting with the given name. If no setting is found, returns def
 const wchar_t *FindTranslation( const wchar_t *name, const wchar_t *def )
 {
-	return g_Settings.FindSetting(name,def);
+	const wchar_t *str=g_TranslationOverrides.FindSetting(name);
+	if (str) return str;
+	return g_Translations.FindSetting(name,def);
 }
 
 // Checks for right-to-left languages

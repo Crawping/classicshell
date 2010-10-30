@@ -62,8 +62,14 @@ END
 
 1                       SKIN                    "SkinDescription.txt"
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
 
-
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+1                       ICON                    "..\\..\\ClassicShellSetup\\ClassicShell.ico"
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 

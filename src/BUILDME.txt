@@ -53,64 +53,6 @@ F. Builds the final setup exe using the ClassicShellSetup solution.
 
 4) Localization
 
-There are multiple aspects of localizing Classic Shell for a specific language.
-
-A. The L10N files
------------------
-Most of the UI text is separated from the executables and placed in 2 INI files:
-ExplorerL10N.ini and StartMenuL10N.ini. The files contain one section for every
-supported language. The code reads the section that belongs to the current language.
-The text covers all UI except the settings dialogs.
-
-
-B. The Settings UI
-------------------
-The Settings UI and some diagnostic messages are resources embedded in the DLLs.
-There are 2 ways to localize them. One is to replace the resources inside the
-DLLs. Another way is to provide an additional DLL with just those resources.
-The DLL must be 32-bit and have the name of the language (for example ja-JP.dll).
-The DLL must provide the following resources:
-
-- A version resource that matches the version of Classic Shell. If the versions
-  don't match the DLL will be ignored. This is done to prevent problems with
-  missing resources or dialog controls when DLL from one version are used by
-  another
-
-- The settings dialog with ID=2001 from ClassicExplorer32.dll
-
-- The whole string table from ClassicExplorer32.dll. The string IDs start from
-  2001 and go up
-
-- The settings dialog with ID=3001 from ClassicStartMenuDLL.dll
-
-- The whole string table from ClassicStartMenuDLL.dll. The string IDs start from
-  3001 and go up
-
-The same resource DLL is used for both Classic Explorer and Classic Start Menu.
-The resource IDs are specifically chosen so there is no conflict between the
-two components.
-
-You can use the provided en-US.dll file as an example. All you need to do is
-translate all the contents of that dll and rename it to the name of your language.
-
-
-C. Help and documentation
--------------------------
-It is possible to translate the CHM help file and the comments in the INI files.
-The easiest way to translate the CHM is to translate the source HTML files and
-recompile the file with the HTML Help Workshop.
-NOTE: When translating the INI file make sure they are saved in UTF-8 or UTF-16
-format. If they are ANSI, the text may look good on your machine but may be all
-messed up on somebody else's computer.
-IMPORTANT NOTE: When translating the INI files make sure you run the SetupHelper
-tool to recalculate the inichecksum.bin file. See section 3-D above.
-Otherwise the INI files will be considered "modified" during uninstall.
-
-
-D. Installer
-------------
-The installer can also be localized. The easiest way is to rebuild the installer
-from its source code and provide a different WXL file for the installer text.
-In extreme cases it may be necessary to resize some of the controls in the WXS
-file to make the text fit.
-Please refer to the WiX documentation for details.
+Classic Shell can be localized in multiple languages. You can provide your own
+text for most of the user interface.
+Download the ClassicShellLoc.zip file and read the document Localization.rtf.

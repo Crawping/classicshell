@@ -8,6 +8,7 @@
 #include "MenuContainer.h"
 #include "ClassicStartMenuDLL.h"
 #include "FNVHash.h"
+#include "Settings.h"
 #include <algorithm>
 
 // CIDropSource - a basic IDropSource implementation. nothing to see here
@@ -52,7 +53,7 @@ public:
 			else
 			{
 				int dt=GetMessageTime()-m_Time;
-				if (dt>4000)
+				if (dt>GetSettingInt(L"DragHideDelay"))
 				{
 					m_bClosed=true;
 					CMenuContainer::HideStartMenu();

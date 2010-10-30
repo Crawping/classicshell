@@ -1,7 +1,8 @@
 // Classic Shell (c) 2009-2010, Ivo Beltchev
 // The sources for Classic Shell are distributed under the MIT open source license
 
-#include "ParseSettings.h"
+#include "SettingsParser.h"
+#include "StringUtils.h"
 #include <algorithm>
 
 const int MAX_TREE_LEVEL=10;
@@ -67,9 +68,17 @@ void CSettingsParser::LoadText( const unsigned char *buf, int size )
 	}
 }
 
+void CSettingsParser::LoadText( const wchar_t *buf, int size )
+{
+	m_Text.resize(size+1);
+	memcpy(&m_Text[0],buf,size*2);
+	m_Text[size]=0;
+}
+
 // Splits m_Text into m_Lines
 void CSettingsParser::ParseText( void )
 {
+	if (m_Text.empty()) return;
 	// split into lines
 	wchar_t *str=&m_Text[0];
 	while (*str)
@@ -127,25 +136,18 @@ void CSettingsParser::FilterLanguages( const wchar_t *languages )
 }
 
 // Returns a setting with the given name. If no setting is found, returns def
-const wchar_t *CSettingsParser::FindSetting( const char *name, const wchar_t *def )
-{
-	wchar_t wname[256];
-	size_t len=MultiByteToWideChar(1252,0,name,-1,wname,_countof(wname)-1);
-	if (len==0 || wname[len-1]!=0)
-		return def;
-	len--;
-
-	const wchar_t *str=FindSetting(wname,len);
-	return str?str:def;
-}
-
 const wchar_t *CSettingsParser::FindSetting( const wchar_t *name, const wchar_t *def )
 {
-	const wchar_t *str=FindSetting(name,wcslen(name));
-	return str?str:def;
+	const wchar_t *str=FindSettingInt(name,wcslen(name));
+	return (str && *str)?str:def;
 }
 
-const wchar_t *CSettingsParser::FindSetting( const wchar_t *name, size_t len )
+const wchar_t *CSettingsParser::FindSettingDirect( const wchar_t *name )
+{
+	return FindSettingInt(name,wcslen(name));
+}
+
+const wchar_t *CSettingsParser::FindSettingInt( const wchar_t *name, size_t len )
 {
 	for (std::vector<const wchar_t*>::const_reverse_iterator it=m_Lines.rbegin();it!=m_Lines.rend();++it)
 	{
@@ -159,7 +161,7 @@ const wchar_t *CSettingsParser::FindSetting( const wchar_t *name, size_t len )
 			str++;
 			while (*str==' ' || *str=='\t')
 				str++;
-			return *str?str:NULL;
+			return str;
 		}
 	}
 
@@ -182,6 +184,11 @@ void CSettingsParser::ParseTree( const wchar_t *rootName, std::vector<TreeItem> 
 		CString names[MAX_TREE_LEVEL];
 		ParseTreeRec(str,items,names,0);
 	}
+	else
+	{
+		TreeItem last={L"",-1};
+		items.push_back(last);
+	}
 }
 
 int CSettingsParser::ParseTreeRec( const wchar_t *str, std::vector<TreeItem> &items, CString *names, int level )
@@ -201,11 +208,11 @@ int CSettingsParser::ParseTreeRec( const wchar_t *str, std::vector<TreeItem> &it
 					bFound=true;
 					break;
 				}
-			if (!bFound)
-			{
-				TreeItem item={token,-1};
-				items.push_back(item);
-			}
+				if (!bFound)
+				{
+					TreeItem item={token,-1};
+					items.push_back(item);
+				}
 		}
 	}
 	size_t end=items.size();
@@ -312,7 +319,7 @@ void CSkinParser::FilterConditions( const wchar_t **values, int count )
 	lines.swap(m_Lines);
 
 	bool bEnable=true;
-	
+
 	for (size_t i=0;i<lines.size();i++)
 	{
 		const wchar_t *line=lines[i];
@@ -336,34 +343,6 @@ void CSkinParser::FilterConditions( const wchar_t **values, int count )
 		if (bEnable)
 			m_Lines.push_back(line);
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-const wchar_t *GetToken( const wchar_t *text, wchar_t *token, int size, const wchar_t *separators )
-{
-	while (*text && wcschr(separators,*text))
-		text++;
-	const wchar_t *c1=text,*c2;
-	if (text[0]=='\"')
-	{
-		c1++;
-		c2=wcschr(c1,'\"');
-	}
-	else
-	{
-		c2=c1;
-		while (*c2!=0 && !wcschr(separators,*c2))
-			c2++;
-	}
-	if (!c2) c2=text+wcslen(text);
-	int l=(int)(c2-c1);
-	if (l>size-1) l=size-1;
-	memcpy(token,c1,l*2);
-	token[l]=0;
-
-	if (*c2) return c2+1;
-	else return c2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

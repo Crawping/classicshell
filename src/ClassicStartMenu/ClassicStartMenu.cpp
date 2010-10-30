@@ -12,6 +12,7 @@
 #include "StringUtils.h"
 
 #include "ClassicStartMenuDLL\ClassicStartMenuDLL.h"
+#include "ClassicStartMenuDLL\SettingsUI.h"
 
 static HHOOK g_StartHook;
 static HWND g_StartButton;
@@ -152,6 +153,16 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpstrC
 
 	if (!bHookExplorer)
 		SetUnhandledExceptionFilter(TopLevelFilter);
+
+#ifndef BUILD_SETUP
+	if (wcsstr(lpstrCmdLine,L"-testsettings")!=NULL)
+	{
+		CoInitialize(NULL);
+		EditSettings(true);
+		CoUninitialize();
+		return 0;
+	}
+#endif
 
 	// prevent multiple instances from running on the same desktop
 	// the assumption is that multiple desktops for the same user will have different name (but may repeat across users)

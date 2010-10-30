@@ -8,11 +8,9 @@
 #include "IconManager.h"
 #include "MenuContainer.h"
 #include "ClassicStartMenuDLL.h"
-#include "GlobalSettings.h"
+#include "Settings.h"
 #include <vsstyle.h>
 #include <dwmapi.h>
-#define SECURITY_WIN32
-#include <Security.h>
 #include <algorithm>
 
 void CMenuContainer::MarginsBlit( HDC hSrc, HDC hDst, const RECT &rSrc, const RECT &rDst, const RECT &rMargins, bool bAlpha, bool bRtlOffset )
@@ -72,17 +70,7 @@ void CMenuContainer::MarginsBlit( HDC hSrc, HDC hDst, const RECT &rSrc, const RE
 void CMenuContainer::CreateBackground( int width1, int width2, int height1, int height2 )
 {
 	// get the text from the ini file or from the registry
-	CRegKey regTitle;
-	wchar_t title[256]=L"Windows";
-	const wchar_t *setting=FindSetting("MenuCaption");
-	if (setting)
-		Strcpy(title,_countof(title),setting);
-	else
-	{
-		ULONG size=_countof(title);
-		if (regTitle.Open(HKEY_LOCAL_MACHINE,L"Software\\Microsoft\\Windows NT\\CurrentVersion",KEY_READ)==ERROR_SUCCESS)
-			regTitle.QueryStringValue(L"ProductName",title,&size);
-	}
+	CString caption=GetSettingString(L"MenuCaption");
 
 	HBITMAP bmpSkin=m_bSubMenu?s_Skin.Submenu_bitmap:s_Skin.Main_bitmap;
 	bool b32=m_bSubMenu?s_Skin.Submenu_bitmap32:s_Skin.Main_bitmap32;
@@ -102,9 +90,9 @@ void CMenuContainer::CreateBackground( int width1, int width2, int height1, int 
 	if (bCaption)
 	{
 		if (s_Theme)
-			DrawThemeTextEx(s_Theme,hdcTemp,0,0,title,-1,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT,&rc,&opts);
+			DrawThemeTextEx(s_Theme,hdcTemp,0,0,caption,-1,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT,&rc,&opts);
 		else
-			DrawText(hdcTemp,title,-1,&rc,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT);
+			DrawText(hdcTemp,caption,-1,&rc,DT_NOPREFIX|DT_SINGLELINE|DT_CALCRECT);
 	}
 	int textWidth=0, textHeight=0;
 	if (!m_bSubMenu)
@@ -259,7 +247,7 @@ void CMenuContainer::CreateBackground( int width1, int width2, int height1, int 
 			opts.dwFlags=DTT_COMPOSITED|DTT_TEXTCOLOR|DTT_GLOWSIZE;
 			opts.crText=0xFFFFFF;
 			opts.iGlowSize=s_Skin.Caption_glow_size;
-			DrawThemeTextEx(s_Theme,hdcTemp,0,0,title,-1,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE,&rc,&opts);
+			DrawThemeTextEx(s_Theme,hdcTemp,0,0,caption,-1,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE,&rc,&opts);
 			SelectObject(hdcTemp,bmp02); // deselect bmpText so all the GDI operations get flushed
 
 			// change the glow color
@@ -292,7 +280,7 @@ void CMenuContainer::CreateBackground( int width1, int width2, int height1, int 
 		{
 			opts.dwFlags=DTT_COMPOSITED|DTT_TEXTCOLOR;
 			opts.crText=s_Skin.Caption_text_color;
-			DrawThemeTextEx(s_Theme,hdcTemp,0,0,title,-1,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE,&rc,&opts);
+			DrawThemeTextEx(s_Theme,hdcTemp,0,0,caption,-1,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE,&rc,&opts);
 			SelectObject(hdcTemp,bmp02);
 
 			// rotate and copy the text onto the final bitmap. Combine the alpha channels
@@ -325,7 +313,7 @@ void CMenuContainer::CreateBackground( int width1, int width2, int height1, int 
 			// draw white text on black background
 			SetTextColor(hdcTemp,0xFFFFFF);
 			SetBkMode(hdcTemp,TRANSPARENT);
-			DrawText(hdcTemp,title,-1,&rc,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE);
+			DrawText(hdcTemp,caption,-1,&rc,DT_VCENTER|DT_NOPREFIX|DT_SINGLELINE);
 			SelectObject(hdcTemp,bmp02);
 
 			// rotate and copy the text onto the final bitmap
@@ -513,22 +501,8 @@ void CMenuContainer::CreateBackground( int width1, int width2, int height1, int 
 		m_rUser2=rc0;
 
 		wchar_t name[256];
-		const wchar_t *str=FindSetting("MenuUsername");
-		if (str)
-		{
-			Strcpy(name,_countof(name),str);
-			DoEnvironmentSubst(name,_countof(name));
-		}
-		else
-		{
-			ULONG size=_countof(name);
-			if (!GetUserNameEx(NameDisplay,name,&size))
-			{
-				// GetUserNameEx may fail (for example on Home editions). use the login name
-				size=_countof(name);
-				GetUserName(name,&size);
-			}
-		}
+		Strcpy(name,_countof(name),GetSettingString(L"MenuUsername"));
+		DoEnvironmentSubst(name,_countof(name));
 
 		if (Strlen(name)>0)
 		{

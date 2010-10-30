@@ -67,6 +67,8 @@ OPTION USER_IMAGE="Show User Picture",0
 OPTION USER_NAME="Show User Name",0
 OPTION CENTER_NAME="Center User Name",0, USER_NAME, 0
 
+AllPrograms_options=variations
+
 [SMALL_ICONS]
 Main_large_icons=0
 Main_font="Segoe UI",normal,-9

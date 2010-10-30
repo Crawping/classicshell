@@ -6,8 +6,10 @@
 #include "stdafx.h"
 #include "ExplorerBHO.h"
 #include "Settings.h"
-#include "GlobalSettings.h"
-#include "TranslationSettings.h"
+#include "ResourceHelper.h"
+#include "resource.h"
+#include "SettingsUI.h"
+#include "Translations.h"
 #include "dllmain.h"
 #include <uxtheme.h>
 #include <dwmapi.h>
@@ -63,12 +65,7 @@ LRESULT CALLBACK CExplorerBHO::SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wP
 	{
 		// Alt+Enter is pressed
 		// if this message was for the folder tree, show the properties of the selected item
-		DWORD FoldersSettings=CExplorerBHO::FOLDERS_DEFAULT;
-		CRegKey regSettings;
-		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
-			regSettings.QueryDWORDValue(L"FoldersSettings",FoldersSettings);
-
-		if ((FoldersSettings&CExplorerBHO::FOLDERS_ALTENTER) && ShowTreeProperties(hWnd))
+		if (GetSettingBool(L"AltEnter") && ShowTreeProperties(hWnd))
 			return 0;
 	}
 
@@ -76,27 +73,22 @@ LRESULT CALLBACK CExplorerBHO::SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wP
 	{
 		wParam&=0x7FFFFFFF;
 
-		DWORD FoldersSettings=CExplorerBHO::FOLDERS_DEFAULT;
-		CRegKey regSettings;
-		if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
-			regSettings.QueryDWORDValue(L"FoldersSettings",FoldersSettings);
-
-		if (FoldersSettings&CExplorerBHO::FOLDERS_AUTONAVIGATE)
+		if (GetSettingBool(L"AutoNavigate"))
 			SetWindowSubclass(GetParent(hWnd),SubclassTreeParentProc,'CLSH',0);
 
-		if (!(FoldersSettings&CExplorerBHO::FOLDERS_NOFADE))
+		if (!GetSettingBool(L"NoFadeButtons"))
 			wParam&=~TVS_EX_FADEINOUTEXPANDOS;
 
 		int indent=-1;
-		if (FoldersSettings&CExplorerBHO::FOLDERS_FULLINDENT)
+		if (GetSettingBool(L"FullIndent"))
 			indent=0;
 
-		if ((FoldersSettings&CExplorerBHO::FOLDERS_STYLE_MASK)!=CExplorerBHO::FOLDERS_VISTA)
+		int treeStyle=GetSettingInt(L"TreeStyle");
+		DWORD style=GetWindowLong(hWnd,GWL_STYLE);
+		if (treeStyle!=STYLE_VISTA)
 		{
 			SetWindowTheme(hWnd,NULL,NULL);
-			DWORD style=GetWindowLong(hWnd,GWL_STYLE);
-			style&=~TVS_NOHSCROLL;
-			if ((FoldersSettings&CExplorerBHO::FOLDERS_STYLE_MASK)==CExplorerBHO::FOLDERS_SIMPLE)
+			if (treeStyle==STYLE_SIMPLE)
 			{
 				style|=TVS_SINGLEEXPAND|TVS_TRACKSELECT;
 				style&=~TVS_HASLINES;
@@ -111,22 +103,22 @@ LRESULT CALLBACK CExplorerBHO::SubclassTreeProc( HWND hWnd, UINT uMsg, WPARAM wP
 				ImageList_GetIconSize(images,&cx,&cy);
 				indent=cx+3;
 			}
-			SetWindowLong(hWnd,GWL_STYLE,style);
 		}
-		else
-		{
+		int scroll=GetSettingInt(L"HScrollbar");
+
+		if ((scroll==0 && treeStyle==STYLE_VISTA) || scroll==1)
 			wParam&=~TVS_EX_AUTOHSCROLL;
-		}
+		if ((scroll==0 && treeStyle!=STYLE_VISTA) || scroll==2)
+			style&=~TVS_NOHSCROLL;
+
+		SetWindowLong(hWnd,GWL_STYLE,style);
+
 		if (indent>=0)
 			TreeView_SetIndent(hWnd,indent);
 
-		const wchar_t *str=FindSetting("TreeItemSpacing");
-		if (str)
-		{
-			int d=_wtol(str);
-			if (d)
-				TreeView_SetItemHeight(hWnd,TreeView_GetItemHeight(hWnd)+d);
-		}
+		int d=GetSettingInt(L"TreeItemSpacing");
+		if (d)
+			TreeView_SetItemHeight(hWnd,TreeView_GetItemHeight(hWnd)+d);
 
 		if (wParam==0) return 0;
 	}
@@ -148,7 +140,7 @@ LRESULT CALLBACK CExplorerBHO::HookExplorer( int nCode, WPARAM wParam, LPARAM lP
 			{
 				DWORD_PTR settings=0;
 				DWORD version=LOWORD(GetVersion());
-				if (version==0x0106 && FindSettingBool("FixFolderScroll",true))
+				if (version==0x0106 && GetSettingBool(L"FixFolderScroll"))
 					settings|=1;
 				SetWindowSubclass(hWnd,SubclassTreeProc,'CLSH',settings);
 				PostMessage(hWnd,TVM_SETEXTENDEDSTYLE,TVS_EX_FADEINOUTEXPANDOS|TVS_EX_AUTOHSCROLL|0x80000000,0);
@@ -260,7 +252,7 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc( HWND hWnd, UINT uMsg, WPARAM 
 								const wchar_t *text=(wchar_t*)lParam;
 								wchar_t str[100];
 								StrFormatByteSize64(size.QuadPart,str,_countof(str));
-								Sprintf(buf,_countof(buf),FindTranslation("Status.FreeSpace",L"%s (Disk free space: %s)"),text,str);
+								Sprintf(buf,_countof(buf),FindTranslation(L"Status.FreeSpace",L"%s (Disk free space: %s)"),text,str);
 								lParam=(LPARAM)buf;
 							}
 						}
@@ -292,7 +284,7 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc( HWND hWnd, UINT uMsg, WPARAM 
 				CComQIPtr<IShellFolder2> pFolder2=pFolder;
 				UINT type=SVGIO_SELECTION;
 				int count;
-				if ((dwRefData&SPACE_TOTAL) && (FAILED(pView2->ItemCount(SVGIO_SELECTION,&count)) || count==0))
+				if ((FAILED(pView2->ItemCount(SVGIO_SELECTION,&count)) || count==0))
 					type=SVGIO_ALLVIEW;
 				CComPtr<IEnumIDList> pEnum;
 				if (SUCCEEDED(pView2->Items(type,IID_IEnumIDList,(void**)&pEnum)) && pEnum)
@@ -382,7 +374,7 @@ LRESULT CALLBACK CExplorerBHO::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM w
 	{
 		// show the tip for the up button
 		NMTBGETINFOTIP *pTip=(NMTBGETINFOTIP*)lParam;
-		Strcpy(pTip->pszText,pTip->cchTextMax,FindTranslation("Toolbar.GoUp",L"Up One Level"));
+		Strcpy(pTip->pszText,pTip->cchTextMax,FindTranslation(L"Toolbar.GoUp",L"Up One Level"));
 		return 0;
 	}
 
@@ -401,28 +393,29 @@ LRESULT CALLBACK CExplorerBHO::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM w
 		((CExplorerBHO*)uIdSubclass)->m_pBrowser->BrowseObject(NULL,flags|SBSP_PARENT);
 	}
 
-	if (((CExplorerBHO*)uIdSubclass)->m_bFixSearchResize)
+	CExplorerBHO *pThis=(CExplorerBHO*)uIdSubclass;
+	if (pThis->m_bRemapBands)
 	{
 		// HACK! Explorer doesn't use RB_IDTOINDEX every time it needs to access a particular band. Since we insert the Up button in the second
 		// position, the rest of the bands get offset and comedy ensues (the search box is not sized properly).
 		// To fix the issue, we renumber the bands so that from the outside ours appears to be last.
+		static int remapNewOld[2][4]={{3,0,1,2},{0,3,1,2}};
+		static int remapOldNew[2][4]={{1,2,3,0},{0,2,3,1}};
+
 		if (uMsg==RB_IDTOINDEX || uMsg==RB_HITTEST)
 		{
 			// remap the result from RB_IDTOINDEX and RB_HITTEST
 			LRESULT res=DefSubclassProc(hWnd,uMsg,wParam,lParam);
-			if (res<0) return res;
-			if (res==1) res=3;
-			else if (res==2) res=1;
-			else if (res==3) res=2;
+			if (res<0 || res>3) return res;
+			res=remapNewOld[pThis->m_UpButtonIndex-1][res];
 			if (lParam && uMsg==RB_HITTEST) ((RBHITTESTINFO*)lParam)->iBand=(int)res;
 			return res;
 		}
 		if (uMsg==RB_GETBANDBORDERS || uMsg==RB_GETBANDINFO || uMsg==RB_GETRECT || uMsg==RB_SETBANDINFO || uMsg==RB_SETBANDWIDTH)
 		{
 			// remap wParam for all GET/SET messages
-			if (wParam==1) wParam=2;
-			else if (wParam==2) wParam=3;
-			else if (wParam==3) wParam=1;
+			if (wParam>=0 && wParam<=3)
+				wParam=remapOldNew[pThis->m_UpButtonIndex-1][wParam];
 		}
 	}
 
@@ -765,8 +758,6 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 
 	if (pUnkSite)
 	{
-		ReadIniFile(false);
-
 		// hook
 		TlsData *pTlsData=GetTlsData();
 		if (!pTlsData->bhoHook)
@@ -790,39 +781,38 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 			HWND status;
 			if (m_pBrowser && SUCCEEDED(m_pBrowser->GetControlWindow(FCW_STATUS,&status)))
 			{
-				CRegKey regSettings;
-				bool bWin7=(LOWORD(GetVersion())!=0x0006);
-				DWORD FreeSpace=bWin7?SPACE_SHOW:0;
-				DWORD UpButton=1;
-				DWORD AddressBar=0;
-				if (regSettings.Open(HKEY_CURRENT_USER,L"Software\\IvoSoft\\ClassicExplorer")==ERROR_SUCCESS)
+				m_TopWindow=GetAncestor(status,GA_ROOT);
+				if (!GetProp(m_TopWindow,g_LoadedSettingsAtom))
 				{
-					regSettings.QueryDWORDValue(L"FreeSpace",FreeSpace);
-					regSettings.QueryDWORDValue(L"UpButton",UpButton);
-					regSettings.QueryDWORDValue(L"AddressBar",AddressBar);
+					SetProp(m_TopWindow,g_LoadedSettingsAtom,(HANDLE)1);
+					LoadSettings();
 				}
-				FreeSpace^=SPACE_INFOTIP;
+				bool bWin7=(LOWORD(GetVersion())!=0x0006);
 
-				HWND root=GetAncestor(status,GA_ROOT);
-				if (root && (AddressBar&(ADDRESS_SHOWTITLE|ADDRESS_SHOWICON)))
+				m_UpButtonIndex=GetSettingInt(L"ShowUpButton");
+				bool bShowCaption=GetSettingBool(L"ShowCaption");
+				bool bShowIcon=GetSettingBool(L"ShowIcon");
+
+				if (m_TopWindow && (bShowCaption || bShowIcon))
 				{
 					// show the title and the icon for the main Explorer window
 					DWORD flags=WTNCA_NODRAWCAPTION|WTNCA_NODRAWICON;
-					if (AddressBar&ADDRESS_SHOWTITLE) flags&=~WTNCA_NODRAWCAPTION;
-					if (AddressBar&ADDRESS_SHOWICON) flags&=~WTNCA_NODRAWICON;
-					SetWindowThemeNonClientAttributes(root,WTNCA_NODRAWCAPTION|WTNCA_NODRAWICON,flags);
+					if (bShowCaption) flags&=~WTNCA_NODRAWCAPTION;
+					if (bShowIcon) flags&=~WTNCA_NODRAWICON;
+					SetWindowThemeNonClientAttributes(m_TopWindow,WTNCA_NODRAWCAPTION|WTNCA_NODRAWICON,flags);
 				}
 
 				// find the TravelBand and the rebar
 				HWND band=NULL, rebar=NULL;
-				if (root)
-					band=FindChildWindow(root,L"TravelBand");
+				if (m_TopWindow)
+					band=FindChildWindow(m_TopWindow,L"TravelBand");
 				if (band)
 					rebar=GetParent(band);
 
 				bool bRedrawRebar=false;
 
-				if (rebar && FindSettingBool("HideSearch",false))
+				m_Rebar=rebar;
+				if (rebar && GetSettingBool(L"HideSearch"))
 				{
 					// to remove the Search box, first find the band with ID=2. Then disable the child control and hide the band
 					int idx=(int)SendMessage(rebar,RB_IDTOINDEX,2,0);
@@ -837,31 +827,32 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 					}
 				}
 
-				if (rebar && UpButton)
+				if (rebar && m_UpButtonIndex)
 				{
 					// find the toolbar 
 					HWND toolbar=FindWindowEx(band,NULL,TOOLBARCLASSNAME,NULL);
 					RECT rc;
 					GetClientRect(toolbar,&rc);
-					const wchar_t *str=FindSetting("UpIconSize");
-					int size=str?_wtol(str):rc.bottom;
-					m_Toolbar=CreateWindow(TOOLBARCLASSNAME,L"",WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|TBSTYLE_CUSTOMERASE|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE,0,0,10,10,rebar,NULL,g_Instance,NULL);
+					bool bDef;
+					int size=GetSettingInt(L"UpIconSize",bDef);
+					if (bDef)
+						size=rc.bottom;
+					m_Toolbar.Create(rebar,NULL,NULL,WS_CHILD|TBSTYLE_TOOLTIPS|TBSTYLE_FLAT|TBSTYLE_CUSTOMERASE|CCS_NODIVIDER|CCS_NOPARENTALIGN|CCS_NORESIZE);
 					m_Toolbar.SendMessage(TB_SETEXTENDEDSTYLE,0,TBSTYLE_EX_MIXEDBUTTONS);
 					m_Toolbar.SendMessage(TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON));
 					m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 
-					HMODULE hShell32=GetModuleHandle(L"Shell32.dll");
 					std::vector<HMODULE> modules;
-					str=FindSetting("UpIconNormal");
-					m_IconNormal=str?LoadIcon(size,str,0,modules,hShell32):NULL;
+					CString str=GetSettingString(L"UpIconNormal");
+					m_IconNormal=str?LoadIcon(size,str,modules):NULL;
 					if (m_IconNormal)
 					{
-						str=FindSetting("UpIconHot");
-						m_IconHot=str?LoadIcon(size,str,0,modules,NULL):NULL;
-						str=FindSetting("UpIconPressed");
-						m_IconPressed=str?LoadIcon(size,str,0,modules,NULL):NULL;
-						str=FindSetting("UpIconDisabled");
-						m_IconDisabled=str?LoadIcon(size,str,0,modules,NULL):NULL;
+						str=GetSettingString(L"UpIconHot");
+						m_IconHot=LoadIcon(size,str,modules);
+						str=GetSettingString(L"UpIconPressed");
+						m_IconPressed=LoadIcon(size,str,modules);
+						str=GetSettingString(L"UpIconDisabled");
+						m_IconDisabled=LoadIcon(size,str,modules);
 						if (!m_IconDisabled)
 							m_IconDisabled=CreateDisabledIcon(m_IconNormal,size);
 					}
@@ -880,7 +871,7 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 					m_Toolbar.SendMessage(TB_ADDBUTTONS,1,(LPARAM)&button);
 					m_Toolbar.SendMessage(TB_SETBUTTONSIZE,0,MAKELONG(size,size));
 
-					m_bFixSearchResize=FindSettingBool("FixSearchResize",bWin7);
+					m_bRemapBands=true;
 					SetWindowSubclass(rebar,RebarSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_Toolbar.m_hWnd);
 					REBARBANDINFO info={sizeof(info),RBBIM_CHILD|RBBIM_ID|RBBIM_CHILDSIZE|RBBIM_IDEALSIZE|RBBIM_SIZE|RBBIM_STYLE};
 					info.fStyle=RBBS_HIDETITLE|RBBS_NOGRIPPER|RBBS_FIXEDSIZE;
@@ -888,17 +879,16 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 					info.cxIdeal=info.cx=info.cxMinChild=size;
 					info.cyMinChild=size;
 					info.wID='UBTN';
-					SendMessage(rebar,RB_INSERTBAND,1,(LPARAM)&info);
+					SendMessage(rebar,RB_INSERTBAND,m_UpButtonIndex-1,(LPARAM)&info);
 					bRedrawRebar=true;
 				}
 
 				if (rebar)
 				{
-					int AddressBarHistory=0;
+					int AddressBarHistory=GetSettingInt(L"AddressBarHistory");
 					HWND progress=NULL;
-					if (AddressBar&ADDRESS_NOBREADCRUMBS)
+					if (GetSettingBool(L"DisableBreadcrumbs"))
 					{
-						AddressBarHistory=_wtol(FindSetting("AddressBarHistory",L"2"));
 						// "hide" the breadcrumbs. no, not really. instead of hiding the breadcrumbs we just make them show the full path as text
 						HWND breadcrumbs=FindChildWindow(rebar,L"Breadcrumb Parent");
 						if (breadcrumbs)
@@ -914,7 +904,6 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 					}
 					else
 					{
-						AddressBarHistory=_wtol(FindSetting("AddressBarHistory",L"0"));
 						HWND breadcrumbs=FindChildWindow(rebar,L"Breadcrumb Parent");
 						if (breadcrumbs)
 							progress=GetParent(breadcrumbs);
@@ -930,19 +919,16 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 				if (bRedrawRebar)
 					RedrawWindow(rebar,NULL,NULL,RDW_UPDATENOW|RDW_ALLCHILDREN);
 
-				if (FreeSpace&SPACE_SHOW)
+				if (GetSettingBool(L"ShowFreeSpace"))
 				{
-					FreeSpace|=SPACE_TOTAL; // always show total
+					DWORD FreeSpace=GetSettingBool(L"ShowInfoTip")?SPACE_INFOTIP:0;
 					if (bWin7)
 						FreeSpace|=SPACE_WIN7;
 					SetWindowSubclass(status,SubclassStatusProc,(UINT_PTR)this,FreeSpace);
-					m_bForceRefresh=(bWin7 && FindSettingBool("ForceRefreshWin7",true));
+					m_bForceRefresh=(bWin7 && GetSettingBool(L"ForceRefreshWin7"));
 				}
 			}
-			s_AutoNavDelay=DEFAULT_NAV_DELAY;
-			const wchar_t *str=FindSetting("AutoNavDelay");
-			if (str)
-				s_AutoNavDelay=_wtol(str);
+			s_AutoNavDelay=GetSettingInt(L"AutoNavDelay");
 		}
 	}
 	else
@@ -952,11 +938,14 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 		if (pTlsData->bhoHook)
 			UnhookWindowsHookEx(pTlsData->bhoHook);
 		pTlsData->bhoHook=NULL;
+		if (m_Rebar)
+			RemoveWindowSubclass(m_Rebar,RebarSubclassProc,(UINT_PTR)this);
 		m_pBrowser=NULL;
 		if (m_pWebBrowser && m_dwEventCookie!=0xFEFEFEFE)
 			DispEventUnadvise(m_pWebBrowser,&DIID_DWebBrowserEvents2);
 		m_pWebBrowser=NULL;
-		m_Toolbar=NULL;
+		if (m_Toolbar.m_hWnd)
+			m_Toolbar.DestroyWindow();
 		if (m_IconNormal) DestroyIcon(m_IconNormal); m_IconNormal=NULL;
 		if (m_IconHot) DestroyIcon(m_IconHot); m_IconHot=NULL;
 		if (m_IconPressed) DestroyIcon(m_IconPressed); m_IconPressed=NULL;
@@ -964,6 +953,8 @@ HRESULT STDMETHODCALLTYPE CExplorerBHO::SetSite( IUnknown *pUnkSite )
 		if (m_CurIcon) DestroyIcon(m_CurIcon); m_CurIcon=NULL;
 		if (m_CurPidl) ILFree(m_CurPidl); m_CurPidl=NULL;
 		if (m_NavigatePidl) ILFree(m_NavigatePidl); m_NavigatePidl=NULL;
+		if (m_TopWindow) RemoveProp(m_TopWindow,g_LoadedSettingsAtom);
+		m_TopWindow=NULL;
 	}
 	ClearComboItems();
 	return S_OK;
@@ -996,11 +987,37 @@ STDMETHODIMP CExplorerBHO::OnNavigateComplete( IDispatch *pDisp, VARIANT *URL )
 		m_pBrowser->QueryActiveShellView(&pView);
 		if (pView)
 		{
-			CComQIPtr<IFolderView> pView2=pView;
-			if (pView2)
+			CComQIPtr<IFolderView> pFolderView=pView;
+			if (pFolderView)
 			{
+				if (GetSettingBool(L"ShowHeaders"))
+				{
+
+					// ***********************************************************************
+
+					// The code to turn on the headers is borrowed from the Explorer7Fixes project under the terms of the MIT license:
+					// http://github.com/ijprest/Explorer7Fixes - Copyright (c) 2010 Ian Prest
+
+					CComQIPtr<IFolderView2> pView2=pFolderView;
+					// Turn on the sort header!
+					pView2->SetCurrentFolderFlags(FWF_NOHEADERINALLVIEWS,0);
+					// It seems the ItemsView doesn't respect the FWF_NOHEADERINALLVIEWS flag
+					// until the view has been refreshed.  Rather than call Refresh, we just
+					// briefly change the view mode and change it back.
+					FOLDERVIEWMODE viewMode;
+					int itemSize=0;
+					pView2->GetViewModeAndIconSize(&viewMode,&itemSize);
+					if (viewMode!=FVM_DETAILS)
+					{
+						pView2->SetViewModeAndIconSize(viewMode==FVM_LIST?FVM_SMALLICON:FVM_LIST,itemSize);
+						pView2->SetViewModeAndIconSize(viewMode,itemSize);
+					}
+					// ***********************************************************************
+
+				}
+
 				CComPtr<IPersistFolder2> pFolder;
-				pView2->GetFolder(IID_IPersistFolder2,(void**)&pFolder);
+				pFolderView->GetFolder(IID_IPersistFolder2,(void**)&pFolder);
 				if (pFolder)
 				{
 					pFolder->GetCurFolder(&m_CurPidl);

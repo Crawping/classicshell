@@ -80,6 +80,7 @@ OPTION SMALL_ICONS="Small Icons",0
 OPTION THICK_BORDER="3D Border (requires Classic Theme)",0
 OPTION SOLID_SELECTION="Solid Color Selection",0
 
+AllPrograms_options=THICK_BORDER, SOLID_SELECTION
 
 [NOT CAPTION]
 Main_bitmap=0

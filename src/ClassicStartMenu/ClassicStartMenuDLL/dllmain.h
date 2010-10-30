@@ -5,7 +5,3 @@
 #pragma once
 
 // Some utility functions used by various modules
-void ReadIniFile( void );
-CString LoadStringEx( int stringID );
-HWND CreateSettingsDialog( HWND hWndParent, DLGPROC lpDialogFunc );
-DWORD GetVersionEx( HINSTANCE hInstance );

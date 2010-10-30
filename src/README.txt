@@ -1,5 +1,5 @@
 CLASSIC SHELL
-Version 2.8.3
+Version 2.9.0
 
 Classic Shell adds some missing features to Windows 7 and Vista like a
 classic start menu, a toolbar for Windows Explorer and others.
@@ -55,7 +55,7 @@ sadly is missing from Windows 7. It has a variety of advanced features:
 Classic Explorer is a plugin for Windows Explorer that:
 
 *	Adds a toolbar to Explorer for some common operations (Go to parent folder,
-  Cut, Copy, Paste, Delete, Properties, Email). More buttons can be added manually
+  Cut, Copy, Paste, Delete, Properties, Email). The toolbar is fully customizable
 
 *	Replaces the copy UI in Vista and Windows 7 with the more user-friendly "classic"
   version similar to Windows XP
@@ -70,7 +70,9 @@ Classic Explorer is a plugin for Windows Explorer that:
 
 *	Can disable the breadcrumbs in the address bar
 
-*	Can display an icon overlay for the shared folders in Windows 7
+*	Fixes a long list of features that are broken in Windows 7 – missing icon overlay
+        for shared folders, the jumping folders in the navigation pane, missing sorting
+        headers in list view, and more
 
 
 

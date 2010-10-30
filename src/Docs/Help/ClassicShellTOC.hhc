@@ -40,8 +40,8 @@
 			<param name="Local" value="ClassicExplorer.html#settings">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="More Settings">
-			<param name="Local" value="ClassicExplorer.html#more">
+			<param name="Name" value="Administrative Settings">
+			<param name="Local" value="ClassicExplorer.html#admin">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="Localization">
@@ -59,20 +59,12 @@
 			<param name="Local" value="ClassicStartMenu.html#settings">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="More Settings">
-			<param name="Local" value="ClassicStartMenu.html#more">
+			<param name="Name" value="Administrative Settings">
+			<param name="Local" value="ClassicStartMenu.html#admin">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="More About Skins">
 			<param name="Local" value="ClassicStartMenu.html#skins">
-			</OBJECT>
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Custom Start Menu">
-			<param name="Local" value="ClassicStartMenu.html#custom">
-			</OBJECT>
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Recent Programs">
-			<param name="Local" value="ClassicStartMenu.html#recent">
 			</OBJECT>
 		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="Cascading All Programs menu">

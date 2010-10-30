@@ -1,8 +1,12 @@
+// Classic Shell (c) 2009-2010, Ivo Beltchev
+// The sources for Classic Shell are distributed under the MIT open source license
+
 #include <windows.h>
 #include <stdio.h>
 #include <vector>
 #include "StringUtils.h"
 #include "FNVHash.h"
+#include "SettingsParser.h"
 #include "resource.h"
 
 // Manifest to enable the 6.0 common controls
@@ -59,10 +63,7 @@ struct IniFile
 
 const IniFile g_Inis[]=
 {
-	{L"Explorer.ini",true},
 	{L"ExplorerL10N.ini",true},
-	{L"StartMenu.ini",false},
-	{L"StartMenuL10N.ini",false},
 	{L"StartMenuItems.ini",false},
 };
 
@@ -325,7 +326,7 @@ int MakeEnglishDll( wchar_t *const *params, int count )
 	}
 
 	// copy strings
-	for (int i=3000;i<4000;i+=16)
+	for (int i=3000;i<5000;i+=16)
 	{
 		int id=i/16;
 		HRSRC hResInfo=FindResource(hMenu,MAKEINTRESOURCE(id),RT_STRING);
@@ -337,7 +338,7 @@ int MakeEnglishDll( wchar_t *const *params, int count )
 	}
 
 	// copy dialogs
-	for (int id=3000;id<3010;id++)
+	for (int id=3000;id<4010;id++)
 	{
 		HRSRC hResInfo=FindResource(hMenu,MAKEINTRESOURCE(id),RT_DIALOG);
 		if (!hResInfo) continue;

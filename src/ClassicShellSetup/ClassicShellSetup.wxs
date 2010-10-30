@@ -57,7 +57,6 @@
                 <?if $(var.x64)=1 ?>
                 <ComponentRef Id="ClassicExplorer64.dll" />
                 <?endif ?>
-                <ComponentRef Id="Explorer.ini" />
                 <ComponentRef Id="ExplorerL10N.ini" />
                 <ComponentRef Id="ClassicExplorerSettings.exe" />
                 <ComponentRef Id="ExplorerSettingsLink" />
@@ -65,8 +64,6 @@
             <Feature Id="ClassicStartMenu" Level="1" Title="Classic Start Menu" ConfigurableDirectory="APPLICATIONFOLDER" AllowAdvertise="no" Description="Classic Start Menu is a highly customizable replacement for the Windows start menu">
                 <ComponentRef Id="ClassicStartMenu.exe" />
                 <ComponentRef Id="ClassicStartMenuDLL.dll" />
-                <ComponentRef Id="StartMenu.ini" />
-                <ComponentRef Id="StartMenuItems.ini" />
                 <ComponentRef Id="StartMenuL10N.ini" />
                 <ComponentRef Id="ClassicSkin.skin" />
                 <ComponentRef Id="FullGlass.skin" />
@@ -398,17 +395,8 @@
             <Component Id="ClassicShellReadme.rtf" Guid="A6B815ED-91BD-4F61-83B3-F98041026BB9" Win64="$(var.CS_WIN64)">
                 <File Id="ClassicShellReadme.rtf" KeyPath="yes" Source="..\Docs\ClassicShellReadme.rtf" Vital="yes" />
             </Component>
-            <Component Id="Explorer.ini" Guid="" Win64="$(var.CS_WIN64)">
-                <File Id="Explorer.ini" KeyPath="yes" Source="..\ClassicExplorer\Explorer.ini" Vital="yes" />
-            </Component>
             <Component Id="ExplorerL10N.ini" Guid="" Win64="$(var.CS_WIN64)">
                 <File Id="ExplorerL10N.ini" KeyPath="yes" Source="..\ClassicExplorer\ExplorerL10N.ini" Vital="yes" />
-            </Component>
-            <Component Id="StartMenu.ini" Guid="" Win64="$(var.CS_WIN64)">
-                <File Id="StartMenu.ini" KeyPath="yes" Source="..\ClassicStartMenu\StartMenu.ini" Vital="yes" />
-            </Component>
-            <Component Id="StartMenuItems.ini" Guid="" Win64="$(var.CS_WIN64)">
-                <File Id="StartMenuItems.ini" KeyPath="yes" Source="..\ClassicStartMenu\StartMenuItems.ini" Vital="yes" />
             </Component>
             <Component Id="StartMenuL10N.ini" Guid="" Win64="$(var.CS_WIN64)">
                 <File Id="StartMenuL10N.ini" KeyPath="yes" Source="..\ClassicStartMenu\StartMenuL10N.ini" Vital="yes" />

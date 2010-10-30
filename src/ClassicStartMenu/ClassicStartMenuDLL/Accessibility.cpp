@@ -6,7 +6,7 @@
 #include "stdafx.h"
 #include "Accessibility.h"
 #include "MenuContainer.h"
-#include "TranslationSettings.h"
+#include "Translations.h"
 
 CMenuAccessible::CMenuAccessible( CMenuContainer *pOwner )
 {
@@ -160,7 +160,7 @@ HRESULT STDMETHODCALLTYPE CMenuAccessible::get_accDefaultAction( VARIANT varChil
 	if (varChild.vt!=VT_I4) return E_INVALIDARG;
 	if (varChild.lVal==CHILDID_SELF)
 	{
-		*pszDefaultAction=SysAllocString(FindTranslation("Menu.ActionClose",L"Close"));
+		*pszDefaultAction=SysAllocString(FindTranslation(L"Menu.ActionClose",L"Close"));
 		return S_OK;
 	}
 	int index=varChild.lVal-1;
@@ -168,7 +168,7 @@ HRESULT STDMETHODCALLTYPE CMenuAccessible::get_accDefaultAction( VARIANT varChil
 		return S_FALSE;
 	const CMenuContainer::MenuItem &item=m_pOwner->m_Items[index];
 	if (item.id!=MENU_SEPARATOR && item.id!=MENU_EMPTY && item.id!=MENU_EMPTY_TOP)
-		*pszDefaultAction=SysAllocString(item.bFolder?FindTranslation("Menu.ActionOpen",L"Open"):FindTranslation("Menu.ActionExecute",L"Execute"));
+		*pszDefaultAction=SysAllocString(item.bFolder?FindTranslation(L"Menu.ActionOpen",L"Open"):FindTranslation(L"Menu.ActionExecute",L"Execute"));
 	return S_OK;
 }
 

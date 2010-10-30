@@ -21,6 +21,9 @@ public:
 	// Reads a text resource into m_Text
 	bool LoadText( HMODULE hMod, HRSRC hResInfo );
 
+	void LoadText( const unsigned char *buf, int size );
+	void LoadText( const wchar_t *buf, int size );
+
 	// Splits m_Text into m_Lines
 	void ParseText( void );
 
@@ -29,8 +32,9 @@ public:
 	void FilterLanguages( const wchar_t *languages );
 
 	// Returns a setting with the given name. If no setting is found, returns def
-	const wchar_t *FindSetting( const char *name, const wchar_t *def=NULL );
 	const wchar_t *FindSetting( const wchar_t *name, const wchar_t *def=NULL );
+	// Returns a setting with the given name, even if the value is blank. If the setting is not found, returns NULL
+	const wchar_t *FindSettingDirect( const wchar_t *name );
 
 	// Frees all resources
 	virtual void Reset( void );
@@ -52,8 +56,7 @@ protected:
 	std::vector<const wchar_t*> m_Lines;
 
 private:
-	const wchar_t *FindSetting( const wchar_t *name, size_t len );
-	void LoadText( const unsigned char *buf, int size );
+	const wchar_t *FindSettingInt( const wchar_t *name, size_t len );
 
 	int ParseTreeRec( const wchar_t *rootName, std::vector<TreeItem> &items, CString *names, int level );
 };
@@ -80,5 +83,4 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////////
 
-const wchar_t *GetToken( const wchar_t *text, wchar_t *token, int size, const wchar_t *separators );
 int EvalCondition( const wchar_t *condition, const wchar_t *const *values, int count );

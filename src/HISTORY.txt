@@ -1,4 +1,18 @@
 ===============================================================================
+== Version 2.9.0 beta (Oct, 2010):
+
+- Replaced the ini files with a graphical interface for editing all settings
+
+- Added a setting to force sorting headers in Windows 7 (based on the
+  Explorer7Fixes tool by Ian Prest)
+
+- Added more settings
+
+- Added special handling for specific folders in the start menu - Computer,
+  Recycle Bin, Network, etc
+
+
+===============================================================================
 == Version 2.8.3 beta (Jul, 2010):
 
 - Added a way to put shell folders as buttons in the toolbar

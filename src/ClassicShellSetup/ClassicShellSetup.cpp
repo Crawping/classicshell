@@ -364,10 +364,12 @@ int APIENTRY wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	}
 	else
 	{
+		CloseHandle(processInfo.hThread);
 		// wait for the installer to finish
 		WaitForSingleObject(processInfo.hProcess,INFINITE);
 		DWORD code;
 		GetExitCodeProcess(processInfo.hProcess,&code);
+		CloseHandle(processInfo.hProcess);
 		DeleteFile(msiName);
 		return code;
 	}

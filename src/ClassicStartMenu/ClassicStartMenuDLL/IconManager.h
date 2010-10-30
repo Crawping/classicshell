@@ -21,11 +21,9 @@ public:
 	void Init( void );
 
 	// Retrieves an icon from a shell folder and child ID
-	int GetIcon( IShellFolder *pFolder, PIDLIST_ABSOLUTE path, PCUITEMID_CHILD item, bool bLarge );
+	int GetIcon( IShellFolder *pFolder, PCUITEMID_CHILD item, bool bLarge );
 	// Retrieves an icon from a file and icon index (index>=0 - icon index, index<0 - resource ID)
 	int GetIcon( const wchar_t *location, int index, bool bLarge );
-	// Retrieves an icon from shell32.dll by resource ID
-	int GetStdIcon( int id, bool bLarge );
 	// Retrieves an icon for a custom menu item
 	int GetCustomIcon( const wchar_t *path, bool bLarge );
 
@@ -39,7 +37,6 @@ private:
 	std::map<unsigned int,int> m_SmallCache;
 
 	HANDLE m_PreloadThread;
-	PIDLIST_ABSOLUTE m_GamesPath;
 
 	void ProcessPreloadedIcons( void );
 

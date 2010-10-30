@@ -125,6 +125,9 @@ OPTION CENTER_NAME="Center User Name",0, USER_NAME, 0
 OPTION SMALL_ICONS="Small Icons",0
 OPTION WHITE_SUBMENUS="White Sub-menus",0
 
+AllPrograms_options=WHITE_SUBMENUS
+
+
 [NOT CAPTION]
 Main_bitmap_slices_X=0,0,0,14,1,13
 Main_padding=11,10,10,5

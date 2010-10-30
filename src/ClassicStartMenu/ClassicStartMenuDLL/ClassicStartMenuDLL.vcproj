@@ -5,6 +5,9 @@
 	Name="ClassicStartMenuDLL"
 	ProjectGUID="{85DEECBB-1F9B-4983-9D54-3BF42182B7E7}"
 	RootNamespace="ClassicStartMenuDLL"
+	SccProjectName="Perforce Project"
+	SccLocalPath="..\.."
+	SccProvider="MSSCCI:Perforce SCM"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -46,8 +49,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/MP"
 				Optimization="0"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="3"
@@ -62,6 +64,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="_DEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -72,7 +75,6 @@
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -125,8 +127,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/MP"
 				Optimization="0"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS"
 				MinimalRebuild="false"
 				BasicRuntimeChecks="3"
@@ -141,6 +142,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="_DEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -151,7 +153,6 @@
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -182,7 +183,7 @@
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="1"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -204,8 +205,7 @@
 				AdditionalOptions="/MP"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -219,6 +219,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -231,7 +232,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -262,7 +262,7 @@
 			IntermediateDirectory="$(ConfigurationName)64"
 			ConfigurationType="2"
 			CharacterSet="1"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -285,8 +285,7 @@
 				AdditionalOptions="/MP"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -300,6 +299,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -312,7 +312,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -343,7 +342,7 @@
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="2"
 			CharacterSet="1"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -365,13 +364,13 @@
 				AdditionalOptions="/MP"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS;BUILD_SETUP"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
+				WarnAsError="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -380,6 +379,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -392,7 +392,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -423,7 +422,7 @@
 			IntermediateDirectory="$(ConfigurationName)64"
 			ConfigurationType="2"
 			CharacterSet="1"
-			WholeProgramOptimization="1"
+			WholeProgramOptimization="0"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -446,13 +445,13 @@
 				AdditionalOptions="/MP"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				WholeProgramOptimization="false"
-				AdditionalIncludeDirectories="..\..\ParseSettings;..\..\StringUtils"
+				AdditionalIncludeDirectories="..\..\ClassicShellLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;CLASSICSTARTMENUDLL_EXPORTS;BUILD_SETUP"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
+				WarnAsError="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -461,6 +460,7 @@
 			<Tool
 				Name="VCResourceCompilerTool"
 				PreprocessorDefinitions="NDEBUG"
+				AdditionalIncludeDirectories="&quot;$(IntDir)&quot;;..\..\ClassicShellLib"
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
@@ -473,7 +473,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				LinkTimeCodeGeneration="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -602,7 +601,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\Settings.cpp"
+				RelativePath=".\SettingsUI.cpp"
 				>
 			</File>
 			<File
@@ -617,6 +616,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -625,6 +625,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -633,6 +634,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -641,6 +643,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -649,6 +652,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -657,6 +661,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						AdditionalOptions="/MP1"
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
@@ -696,7 +701,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\Settings.h"
+				RelativePath=".\SettingsUI.h"
 				>
 			</File>
 			<File

@@ -38,6 +38,7 @@ enum TMenuID
 		MENU_USERPICTURES,
 	MENU_SETTINGS,
 		MENU_CONTROLPANEL,
+		MENU_CONTROLPANEL_CATEGORIES,
 		MENU_NETWORK,
 		MENU_SECURITY,
 		MENU_PRINTERS,
@@ -68,19 +69,18 @@ enum TMenuID
 
 struct StdMenuItem
 {
+	const wchar_t *command;
 	TMenuID id;
-	const char *key; // localization key
-	const wchar_t *name; // default name
-	int icon; // index in shell32.dll
-	TMenuID submenuID; // MENU_NO if no submenu
 	const KNOWNFOLDERID *folder1; // NULL if not used
 	const KNOWNFOLDERID *folder2; // NULL if not used
-	const char *tipKey; // localization key for the tooltip
+
+	const wchar_t *label; // localization key
 	const wchar_t *tip; // default tooltip
-	const StdMenuItem *submenu;
-	const wchar_t *link;
-	const wchar_t *command;
 	const wchar_t *iconPath;
+	const wchar_t *link;
+	unsigned int settings;
+	const StdMenuItem *submenu;
+	CString labelString, tipString; // additional storage for the strings
 
 	// user settings
 	enum
@@ -93,11 +93,27 @@ struct StdMenuItem
 		MENU_ITEMS_FIRST = 0x0020, // place the custom items before the folder items
 		MENU_TRACK       = 0x0040, // track shortcuts from this menu
 		MENU_NOTRACK     = 0x0080, // don't track shortcuts from this menu
+		MENU_NOEXPAND    = 0x0100, // don't expand this link item
+		MENU_MULTICOLUMN = 0x0200, // make this item a multi-column item
 
 		MENU_NORECENT    = 0x8000  // don't show recent items in the root menu (because a sub-menu uses MENU_RECENT_ITEMS)
 	};
-	unsigned int settings;
 };
+
+struct SpecialFolder
+{
+	const KNOWNFOLDERID *folder;
+	unsigned int settings;
+
+	enum
+	{
+		FOLDER_NOSUBFOLDERS=1, // don't show the subfolders of this folder
+		FOLDER_NONEWFOLDER=2, // don't show the "New Folder" command
+		FOLDER_NODROP=4, // don't allow reordering, don't show "Sort" and "Auto Arrange" (also implies FOLDER_NONEWFOLDER)
+	};
+};
+
+extern SpecialFolder g_SpecialFolders[];
 
 class CMenuAccessible;
 
@@ -152,25 +168,27 @@ public:
 	// options when creating a container
 	enum
 	{
-		CONTAINER_LARGE        = 0x00001, // use large icons
-		CONTAINER_MULTICOLUMN  = 0x00002, // use multiple columns instead of a single scrolling column
-		CONTAINER_CONTROLPANEL = 0x00004, // this is the control panel, don't go into subfolders
-		CONTAINER_PROGRAMS     = 0x00008, // this is a folder from the Start Menu hierarchy (drop operations prefer link over move)
-		CONTAINER_DOCUMENTS    = 0x00010, // sort by time, limit the count (for recent documents)
-		CONTAINER_ALLPROGRAMS  = 0x00020, // this is the main menu of All Programs (combines the Start Menu and Programs folders)
-		CONTAINER_RECENT       = 0x00040, // insert recent programs (sorted by time)
-		CONTAINER_LINK         = 0x00080, // this is an expanded link to a folder (always scrolling)
-		CONTAINER_ITEMS_FIRST  = 0x00100, // put standard items at the top
-		CONTAINER_DRAG         = 0x00200, // allow items to be dragged out
-		CONTAINER_DROP         = 0x00400, // allow dropping of items
-		CONTAINER_LEFT         = 0x00800, // the window is aligned on the left
-		CONTAINER_TOP          = 0x01000, // the window is aligned on the top
-		CONTAINER_AUTOSORT     = 0x02000, // the menu is always in alphabetical order
-		CONTAINER_OPENUP_REC   = 0x04000, // the container's children will prefer to open up instead of down
-		CONTAINER_SORTZA       = 0x08000, // the container will sort backwards by default
-		CONTAINER_SORTZA_REC   = 0x10000, // the container's children will sort backwards by default
-		CONTAINER_SORTONCE     = 0x20000, // the container will save the sort order the first time the menu is opened
-		CONTAINER_TRACK        = 0x40000, // track shortcuts from this menu
+		CONTAINER_LARGE        = 0x000001, // use large icons
+		CONTAINER_MULTICOLUMN  = 0x000002, // use multiple columns instead of a single scrolling column
+		CONTAINER_CONTROLPANEL = 0x000004, // this is the control panel, don't go into subfolders
+		CONTAINER_PROGRAMS     = 0x000008, // this is a folder from the Start Menu hierarchy (drop operations prefer link over move)
+		CONTAINER_DOCUMENTS    = 0x000010, // sort by time, limit the count (for recent documents)
+		CONTAINER_ALLPROGRAMS  = 0x000020, // this is the main menu of All Programs (combines the Start Menu and Programs folders)
+		CONTAINER_RECENT       = 0x000040, // insert recent programs (sorted by time)
+		CONTAINER_LINK         = 0x000080, // this is an expanded link to a folder (always scrolling)
+		CONTAINER_ITEMS_FIRST  = 0x000100, // put standard items at the top
+		CONTAINER_DRAG         = 0x000200, // allow items to be dragged out
+		CONTAINER_DROP         = 0x000400, // allow dropping of items
+		CONTAINER_LEFT         = 0x000800, // the window is aligned on the left
+		CONTAINER_TOP          = 0x001000, // the window is aligned on the top
+		CONTAINER_AUTOSORT     = 0x002000, // the menu is always in alphabetical order
+		CONTAINER_OPENUP_REC   = 0x004000, // the container's children will prefer to open up instead of down
+		CONTAINER_SORTZA       = 0x008000, // the container will sort backwards by default
+		CONTAINER_SORTZA_REC   = 0x010000, // the container's children will sort backwards by default
+		CONTAINER_SORTONCE     = 0x020000, // the container will save the sort order the first time the menu is opened
+		CONTAINER_TRACK        = 0x040000, // track shortcuts from this menu
+		CONTAINER_NOSUBFOLDERS = 0x080000, // don't go into subfolders
+		CONTAINER_NONEWFOLDER  = 0x100000, // don't show the "New Folder" command
 	};
 
 	CMenuContainer( CMenuContainer *pParent, int index, int options, const StdMenuItem *pStdItem, PIDLIST_ABSOLUTE path1, PIDLIST_ABSOLUTE path2, const CString &regName );
@@ -439,7 +457,7 @@ private:
 
 	// pPt - optional point in screen space (used only by ACTIVATE_EXECUTE and ACTIVATE_MENU)
 	void ActivateItem( int index, TActivateType type, const POINT *pPt );
-	void RunUserCommand( void );
+	void RunUserCommand( bool bPicture );
 	void ShowKeyboardCues( void );
 	void SetActiveWindow( void );
 	void CreateBackground( int width1, int width2, int height1, int height2 ); // width1/2, height1/2 - the first and second content area
@@ -488,6 +506,7 @@ private:
 	static DWORD s_SubmenuStyle;
 	static CLIPFORMAT s_ShellFormat; // CFSTR_SHELLIDLIST
 	static CComPtr<IShellFolder> s_pDesktop; // cached pointer of the desktop object
+	static CComPtr<IKnownFolderManager> s_pKnownFolders;
 	static HWND s_LastFGWindow; // stores the foreground window to restore later when the menu closes
 	static HTHEME s_Theme;
 	static HTHEME s_PagerTheme;

@@ -6,9 +6,11 @@
 #include "ClassicStartMenuDLL.h"
 #include "MenuContainer.h"
 #include "IconManager.h"
-#include "GlobalSettings.h"
-#include "TranslationSettings.h"
+#include "SettingsParser.h"
+#include "Translations.h"
 #include "Settings.h"
+#include "SettingsUI.h"
+#include "ResourceHelper.h"
 #include "dllmain.h"
 #include <uxtheme.h>
 #include <htmlhelp.h>
@@ -25,18 +27,24 @@ HWND g_TaskBar;
 HWND g_OwnerWindow;
 HWND g_ProgWin;
 HWND g_TopMenu, g_AllPrograms, g_ProgramsButton, g_UserPic; // from the Windows menu
-DWORD g_Controls;
 static UINT g_StartMenuMsg;
 static HWND g_Tooltip;
 static TOOLINFO g_StarButtonTool;
-static int g_HotkeyCSMID, g_HotkeyNSMID;
-static DWORD g_HotkeyCSM, g_HotkeyNSM;
+static int g_HotkeyCSM, g_HotkeyWSM, g_HotkeyCSMID, g_HotkeyWSMID;
 static HHOOK g_ProgHook, g_StartHook, g_KeyboardHook;
 static bool g_bAllProgramsTimer;
 static bool g_bStartButtonTimer;
 static bool g_bInMenu;
 static DWORD g_LastClickTime;
+static DWORD g_LastHoverPos;
 static bool g_bCrashDump;
+
+enum
+{
+	OPEN_NOTHING,
+	OPEN_CLASSIC,
+	OPEN_WINDOWS
+};
 
 // MiniDumpNormal - minimal information
 // MiniDumpWithDataSegs - include global variables
@@ -69,7 +77,7 @@ DWORD WINAPI SaveCrashDump( void *pExceptionInfo )
 			{
 				wchar_t fname[_MAX_PATH];
 				Sprintf(fname,_countof(fname),L"%s\\CSM_Crash%d.dmp",path,i);
-				file=CreateFile(fname,GENERIC_WRITE,FILE_SHARE_WRITE,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+				file=CreateFile(fname,GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
 				if (file!=INVALID_HANDLE_VALUE || GetLastError()!=ERROR_FILE_EXISTS) break;
 			}
 			if (file!=INVALID_HANDLE_VALUE)
@@ -280,11 +288,9 @@ static void FindStartButton( void )
 			RegisterDragDrop(g_StartButton,pNewTarget);
 			pNewTarget->Release();
 			g_HotkeyCSMID=GlobalAddAtom(L"ClassicStartMenu.HotkeyCSM");
-			g_HotkeyNSMID=GlobalAddAtom(L"ClassicStartMenu.HotkeyNSM");
+			g_HotkeyWSMID=GlobalAddAtom(L"ClassicStartMenu.HotkeyWSM");
 #endif
-			StartMenuSettings settings;
-			ReadSettings(settings);
-			SetControls(settings.HotkeyCSM,settings.HotkeyNSM,settings.Controls);
+			EnableHotkeys(HOTKEYS_NORMAL);
 			srand(GetTickCount());
 		}
 		if (!g_StartButton) g_StartButton=(HWND)1;
@@ -347,35 +353,19 @@ static LRESULT CALLBACK HookKeyboardLL( int code, WPARAM wParam, LPARAM lParam )
 }
 
 // Set the hotkeys and controls for the start menu
-void SetControls( DWORD hotkeyCSM, DWORD hotkeyNSM, DWORD controls )
+void EnableHotkeys( THotkeys enable )
 {
-	if (g_HotkeyCSM)
-		UnregisterHotKey(g_StartButton,g_HotkeyCSMID);
-	g_HotkeyCSM=hotkeyCSM;
-	if (hotkeyCSM)
+	if (!g_StartButton)
+		return;
+	if (GetWindowThreadProcessId(g_StartButton,NULL)!=GetCurrentThreadId())
 	{
-		int mod=0;
-		if (hotkeyCSM&(HOTKEYF_SHIFT<<8)) mod|=MOD_SHIFT;
-		if (hotkeyCSM&(HOTKEYF_CONTROL<<8)) mod|=MOD_CONTROL;
-		if (hotkeyCSM&(HOTKEYF_ALT<<8)) mod|=MOD_ALT;
-		RegisterHotKey(g_StartButton,g_HotkeyCSMID,mod,hotkeyCSM&255);
+		PostMessage(g_StartButton,g_StartMenuMsg,MSG_HOTKEYS,enable);
+		return;
 	}
 
-	if (g_HotkeyNSM)
-		UnregisterHotKey(g_StartButton,g_HotkeyNSMID);
-	g_HotkeyNSM=hotkeyNSM;
-	if (hotkeyNSM)
-	{
-		int mod=0;
-		if (hotkeyNSM&(HOTKEYF_SHIFT<<8)) mod|=MOD_SHIFT;
-		if (hotkeyNSM&(HOTKEYF_CONTROL<<8)) mod|=MOD_CONTROL;
-		if (hotkeyNSM&(HOTKEYF_ALT<<8)) mod|=MOD_ALT;
-		RegisterHotKey(g_StartButton,g_HotkeyNSMID,mod,hotkeyNSM&255);
-	}
-
-	g_Controls=controls;
-
-	if (g_Controls&0x0F000000)
+	// must be executed in the same thread as the start button (otherwise RegisterHotKey doesn't work). also prevents race conditions
+	bool bHook=(enable==HOTKEYS_SETTINGS || (enable==HOTKEYS_NORMAL && GetSettingInt(L"ShiftWin")!=0));
+	if (bHook)
 	{
 		if (!g_KeyboardHook)
 			g_KeyboardHook=SetWindowsHookEx(WH_KEYBOARD_LL,HookKeyboardLL,g_Instance,NULL);
@@ -386,11 +376,43 @@ void SetControls( DWORD hotkeyCSM, DWORD hotkeyNSM, DWORD controls )
 			UnhookWindowsHookEx(g_KeyboardHook);
 		g_KeyboardHook=NULL;
 	}
+
+	if (g_HotkeyCSM)
+		UnregisterHotKey(g_StartButton,g_HotkeyCSMID);
+	g_HotkeyCSM=0;
+
+	if (g_HotkeyWSM)
+		UnregisterHotKey(g_StartButton,g_HotkeyWSMID);
+	g_HotkeyWSM=0;
+
+	if (enable==HOTKEYS_NORMAL)
+	{
+		g_HotkeyCSM=GetSettingInt(L"CSMHotkey");
+		if (g_HotkeyCSM)
+		{
+			int mod=0;
+			if (g_HotkeyCSM&(HOTKEYF_SHIFT<<8)) mod|=MOD_SHIFT;
+			if (g_HotkeyCSM&(HOTKEYF_CONTROL<<8)) mod|=MOD_CONTROL;
+			if (g_HotkeyCSM&(HOTKEYF_ALT<<8)) mod|=MOD_ALT;
+			BOOL err=RegisterHotKey(g_StartButton,g_HotkeyCSMID,mod,g_HotkeyCSM&255);
+			int q=0;
+		}
+
+		g_HotkeyWSM=GetSettingInt(L"WSMHotkey");
+		if (g_HotkeyWSM)
+		{
+			int mod=0;
+			if (g_HotkeyWSM&(HOTKEYF_SHIFT<<8)) mod|=MOD_SHIFT;
+			if (g_HotkeyWSM&(HOTKEYF_CONTROL<<8)) mod|=MOD_CONTROL;
+			if (g_HotkeyWSM&(HOTKEYF_ALT<<8)) mod|=MOD_ALT;
+			RegisterHotKey(g_StartButton,g_HotkeyWSMID,mod,g_HotkeyWSM&255);
+		}
+	}
 }
 
 static LRESULT CALLBACK SubclassTopMenuProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData )
 {
-	if (uMsg==WM_ACTIVATE && (g_Controls&0x10000000))
+	if (uMsg==WM_ACTIVATE && GetSettingBool(L"CascadeAll"))
 	{
 		if (!wParam)
 		{
@@ -402,9 +424,11 @@ static LRESULT CALLBACK SubclassTopMenuProc( HWND hWnd, UINT uMsg, WPARAM wParam
 					return 0;
 		}
 	}
-	if (uMsg==WM_WINDOWPOSCHANGED && (((WINDOWPOS*)lParam)->flags&SWP_SHOWWINDOW) && (g_Controls&0x20000000))
+	if (uMsg==WM_WINDOWPOSCHANGED && (((WINDOWPOS*)lParam)->flags&SWP_SHOWWINDOW))
 	{
-		PostMessage(hWnd,WM_CLEAR,'CLSH',0);
+		g_LastHoverPos=GetMessagePos();
+		if (GetSettingInt(L"InitiallySelect")==1)
+			PostMessage(hWnd,WM_CLEAR,'CLSH',0);
 	}
 	if (uMsg==WM_CLEAR && wParam=='CLSH')
 	{
@@ -414,7 +438,10 @@ static LRESULT CALLBACK SubclassTopMenuProc( HWND hWnd, UINT uMsg, WPARAM wParam
 	if (uMsg==WM_SHOWWINDOW)
 	{
 		if (!wParam)
+		{
 			CMenuContainer::CloseProgramsMenu();
+			SendMessage(g_AllPrograms,BM_SETSTATE,FALSE,0);
+		}
 		g_bAllProgramsTimer=false;
 	}
 	if (uMsg==WM_DESTROY)
@@ -423,7 +450,7 @@ static LRESULT CALLBACK SubclassTopMenuProc( HWND hWnd, UINT uMsg, WPARAM wParam
 	{
 		if (CMenuContainer::s_pDragSource) return 0;
 	}
-	if (uMsg==WM_MOUSEACTIVATE && (g_Controls&0x10000000))
+	if (uMsg==WM_MOUSEACTIVATE && GetSettingBool(L"CascadeAll"))
 	{
 		CPoint pt(GetMessagePos());
 		if (WindowFromPoint(pt)==g_ProgramsButton && CMenuContainer::IsMenuOpened())
@@ -435,7 +462,7 @@ static LRESULT CALLBACK SubclassTopMenuProc( HWND hWnd, UINT uMsg, WPARAM wParam
 
 static  LRESULT CALLBACK SubclassProgramsProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData )
 {
-	if (uMsg==WM_COMMAND && wParam==IDOK && (g_Controls&0x10000000))
+	if (uMsg==WM_COMMAND && wParam==IDOK && GetSettingBool(L"CascadeAll"))
 	{
 		if (GetKeyState(VK_SHIFT)<0)
 		{
@@ -514,18 +541,14 @@ static LRESULT CALLBACK SubclassTaskBarProc( HWND hWnd, UINT uMsg, WPARAM wParam
 
 static void InitStartMenuDLL( void )
 {
-	const wchar_t *str=FindSetting("CrashDump");
-	if (str)
+	int level=GetSettingInt(L"CrashDump");
+	if (level>=1 && level<=3)
 	{
-		int level=_wtol(str);
-		if (level>=1 && level<=3)
-		{
-			if (level==1) MiniDumpType=MiniDumpNormal;
-			if (level==2) MiniDumpType=MiniDumpWithDataSegs;
-			if (level==3) MiniDumpType=MiniDumpWithFullMemory;
-			SetUnhandledExceptionFilter(TopLevelFilter);
-			g_bCrashDump=true;
-		}
+		if (level==1) MiniDumpType=MiniDumpNormal;
+		if (level==2) MiniDumpType=MiniDumpWithDataSegs;
+		if (level==3) MiniDumpType=MiniDumpWithFullMemory;
+		SetUnhandledExceptionFilter(TopLevelFilter);
+		g_bCrashDump=true;
 	}
 	FindStartButton();
 	g_ProgWin=FindWindowEx(NULL,NULL,L"Progman",NULL);
@@ -555,7 +578,7 @@ static void CleanStartMenuDLL( void )
 	CMenuFader::ClearAll();
 	g_IconManager.StopPreloading(true);
 	UnhookDropTarget();
-	SetControls(0,0,0);
+	EnableHotkeys(HOTKEYS_CLEAR);
 	HWND hwnd=FindWindow(L"ClassicStartMenu.CStartHookWindow",L"StartHookWindow");
 	UnhookWindowsHookEx(g_ProgHook);
 	UnhookWindowsHookEx(g_StartHook);
@@ -595,11 +618,11 @@ STARTMENUAPI LRESULT CALLBACK HookProgMan( int code, WPARAM wParam, LPARAM lPara
 		{
 			// Win button pressed
 			FindStartButton();
-			int control=(g_Controls>>16)&15;
-			if (control!=StartMenuSettings::OPEN_WINDOWS)
+			int control=GetSettingInt(L"WinKey");
+			if (control!=OPEN_WINDOWS)
 			{
 				msg->message=WM_NULL;
-				if (control==StartMenuSettings::OPEN_CLASSIC)
+				if (control==OPEN_CLASSIC)
 					PostMessage(g_StartButton,g_StartMenuMsg,MSG_TOGGLE,0);
 			}
 			else
@@ -666,7 +689,7 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 			msg->message=WM_NULL;
 			return 0;
 		}
-		if (((msg->message>=WM_MOUSEFIRST && msg->message<=WM_MOUSELAST) || msg->message==WM_MOUSEHOVER) && CMenuContainer::ProcessMouseMessage(msg->hwnd,msg->message,msg->wParam,msg->lParam))
+		if (((msg->message>=WM_MOUSEFIRST && msg->message<=WM_MOUSELAST) || msg->message==WM_MOUSEHOVER || msg->message==WM_MOUSELEAVE) && CMenuContainer::ProcessMouseMessage(msg->hwnd,msg->message,msg->wParam,msg->lParam))
 		{
 			msg->message=WM_NULL;
 			return 0;
@@ -679,24 +702,23 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				ToggleStartMenu(g_StartButton,true);
 			else if (msg->wParam==MSG_SETTINGS)
 			{
-				if (FindSettingBool("EnableSettings",true))
+				if (GetSettingBool(L"EnableSettings"))
 					EditSettings(false);
 			}
 			else if (msg->wParam==MSG_SHIFTWIN)
 			{
-				int control=(g_Controls>>24)&15;
-				if (control==StartMenuSettings::OPEN_CLASSIC)
+				int control=GetSettingInt(L"ShiftWin");
+				if (control==OPEN_CLASSIC)
 					ToggleStartMenu(g_StartButton,true);
-				else if (control==StartMenuSettings::OPEN_WINDOWS)
+				else if (control==OPEN_WINDOWS)
 					PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
 			}
 			else if (msg->wParam==MSG_DRAG || msg->wParam==MSG_SHIFTDRAG)
 			{
-				int shift=(msg->wParam==MSG_DRAG)?0:8;
-				int control=(g_Controls>>shift)&15;
-				if (control==StartMenuSettings::OPEN_CLASSIC)
+				int control=GetSettingInt((msg->wParam==MSG_DRAG)?L"MouseClick":L"ShiftClick");
+				if (control==OPEN_CLASSIC)
 					ToggleStartMenu(g_StartButton,true);
-				else if (control==StartMenuSettings::OPEN_WINDOWS)
+				else if (control==OPEN_WINDOWS)
 					PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
 			}
 			else if (msg->wParam==MSG_EXIT)
@@ -704,6 +726,10 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				LRESULT res=CallNextHookEx(NULL,code,wParam,lParam);
 				CleanStartMenuDLL();
 				return res; // we should exit as quickly as possible now. the DLL is about to be unloaded
+			}
+			else if (msg->wParam==MSG_HOTKEYS)
+			{
+				EnableHotkeys((THotkeys)msg->lParam);
 			}
 		}
 
@@ -715,15 +741,14 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				SetForegroundWindow(g_StartButton);
 				ToggleStartMenu(g_StartButton,true);
 			}
-			else if (msg->wParam==g_HotkeyNSMID)
+			else if (msg->wParam==g_HotkeyWSMID)
 				PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
 		}
 
 		if (msg->message==WM_KEYDOWN && msg->hwnd==g_StartButton && (msg->wParam==VK_SPACE || msg->wParam==VK_RETURN))
 		{
 			FindWindowsMenu();
-			int control=(g_Controls>>16)&15;
-			if (control==StartMenuSettings::OPEN_CLASSIC)
+			if (GetSettingInt(L"WinKey")==OPEN_CLASSIC)
 			{
 				msg->message=WM_NULL;
 				SetForegroundWindow(g_StartButton);
@@ -734,11 +759,17 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 		if ((msg->message==WM_LBUTTONDOWN || msg->message==WM_LBUTTONDBLCLK || msg->message==WM_MBUTTONDOWN) && msg->hwnd==g_StartButton)
 		{
 			FindWindowsMenu();
-			int shift=msg->message==WM_MBUTTONDOWN?4:((GetKeyState(VK_SHIFT)<0)?8:0);
-			int control=(g_Controls>>shift)&15;
-			if (control==StartMenuSettings::OPEN_NOTHING)
+			const wchar_t *name;
+			if (msg->message==WM_MBUTTONDOWN)
+				name=L"MiddleClick";
+			else if (GetKeyState(VK_SHIFT)<0)
+				name=L"ShiftClick";
+			else
+				name=L"MouseClick";
+			int control=GetSettingInt(name);
+			if (control==OPEN_NOTHING)
 				msg->message=WM_NULL;
-			if (control==StartMenuSettings::OPEN_CLASSIC)
+			if (control==OPEN_CLASSIC)
 			{
 				DWORD pos=GetMessagePos();
 				POINT pt={(short)LOWORD(pos),(short)HIWORD(pos)};
@@ -755,7 +786,7 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				ToggleStartMenu(g_StartButton,keyboard!=0);
 				msg->message=WM_NULL;
 			}
-			else if (control==StartMenuSettings::OPEN_WINDOWS && msg->message==WM_MBUTTONDOWN)
+			else if (control==OPEN_WINDOWS && msg->message==WM_MBUTTONDOWN)
 				PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
 		}
 
@@ -763,11 +794,17 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 			&& (msg->wParam==HTCAPTION || !IsAppThemed())) // HACK: in Classic mode the start menu can show up even if wParam is not HTCAPTION (most likely a bug in Windows)
 		{
 			FindWindowsMenu();
-			int shift=msg->message==WM_NCMBUTTONDOWN?4:((GetKeyState(VK_SHIFT)<0)?8:0);
-			int control=(g_Controls>>shift)&15;
-			if (control==StartMenuSettings::OPEN_NOTHING)
+			const wchar_t *name;
+			if (msg->message==WM_MBUTTONDOWN)
+				name=L"MiddleClick";
+			else if (GetKeyState(VK_SHIFT)<0)
+				name=L"ShiftClick";
+			else
+				name=L"MouseClick";
+			int control=GetSettingInt(name);
+			if (control==OPEN_NOTHING)
 				msg->message=WM_NULL;
-			else if (control==StartMenuSettings::OPEN_CLASSIC)
+			else if (control==OPEN_CLASSIC)
 			{
 				if (PointAroundStartButton())
 				{
@@ -778,7 +815,7 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 					msg->message=WM_NULL;
 				}
 			}
-			else if (control==StartMenuSettings::OPEN_WINDOWS && msg->message==WM_NCMBUTTONDOWN)
+			else if (control==OPEN_WINDOWS && msg->message==WM_NCMBUTTONDOWN)
 				PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
 		}
 
@@ -788,19 +825,19 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 			msg->message=WM_NULL;
 		}
 
-		if (msg->message==WM_MOUSEMOVE && msg->hwnd==g_ProgramsButton && (g_Controls&0x10000000) && !(msg->wParam&MK_SHIFT))
+		if (msg->message==WM_MOUSEMOVE && msg->hwnd==g_ProgramsButton && GetSettingBool(L"CascadeAll") && !(msg->wParam&MK_SHIFT))
 		{
-			if (!g_bAllProgramsTimer)
+			DWORD pos=GetMessagePos();
+			if (pos!=g_LastHoverPos && !g_bAllProgramsTimer)
 			{
 				g_bAllProgramsTimer=true;
-				DWORD time;
-				const wchar_t *str=FindSetting("MenuDelay");
-				if (str)
-					time=_wtol(str);
-				else
+				bool bDef;
+				DWORD time=GetSettingInt(L"AllProgramsDelay",bDef);
+				if (bDef)
 					SystemParametersInfo(SPI_GETMENUSHOWDELAY,NULL,&time,0);
 				SetTimer(g_ProgramsButton,'CLSM',time,NULL);
 			}
+			g_LastHoverPos=pos;
 		}
 		if (msg->message==WM_TIMER && msg->wParam=='CLSM' && msg->hwnd==g_ProgramsButton)
 		{
@@ -816,17 +853,14 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 		}
 
 		// handle hover
-		if (msg->message==WM_MOUSEMOVE && msg->hwnd==g_StartButton && (g_Controls&0xF000)
-			&& !g_bStartButtonTimer && !CMenuContainer::IsMenuOpened() && !(::SendMessage(g_StartButton,BM_GETSTATE,0,0)&BST_PUSHED))
+		if (msg->message==WM_MOUSEMOVE && msg->hwnd==g_StartButton && !g_bStartButtonTimer && !CMenuContainer::IsMenuOpened()
+			&& GetSettingInt(L"Hover") && !(::SendMessage(g_StartButton,BM_GETSTATE,0,0)&BST_PUSHED))
 		{
 			g_bStartButtonTimer=true;
-			DWORD time=1000;
-			const wchar_t *str=FindSetting("StartHoverDelay");
-			if (str)
-				time=_wtol(str);
+			int time=GetSettingInt(L"StartHoverDelay");
 			SetTimer(g_StartButton,'CLSM',time,NULL);
 		}
-		if ((msg->message==WM_NCMOUSEMOVE || msg->message==WM_NCMOUSELEAVE) && msg->hwnd==g_TaskBar && (g_Controls&0xF000)
+		if ((msg->message==WM_NCMOUSEMOVE || msg->message==WM_NCMOUSELEAVE) && msg->hwnd==g_TaskBar && GetSettingInt(L"Hover")
 			&& (msg->wParam==HTCAPTION || !IsAppThemed())) // HACK: in Classic mode the start menu can show up even if wParam is not HTCAPTION (most likely a bug in Windows)
 		{
 			if (!CMenuContainer::IsMenuOpened() && !(::SendMessage(g_StartButton,BM_GETSTATE,0,0)&BST_PUSHED) && PointAroundStartButton())
@@ -834,10 +868,7 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				if (!g_bStartButtonTimer)
 				{
 					g_bStartButtonTimer=true;
-					DWORD time=1000;
-					const wchar_t *str=FindSetting("StartHoverDelay");
-					if (str)
-						time=_wtol(str);
+					int time=GetSettingInt(L"StartHoverDelay");
 					SetTimer(g_StartButton,'CLSM',time,NULL);
 				}
 			}
@@ -859,10 +890,10 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				CPoint pt(GetMessagePos());
 				if (WindowFromPoint(pt)==g_StartButton || PointAroundStartButton())
 				{
-					int control=(g_Controls>>12)&15;
-					if (control==StartMenuSettings::OPEN_CLASSIC)
+					int control=GetSettingInt(L"Hover");
+					if (control==OPEN_CLASSIC)
 						ToggleStartMenu(g_StartButton,false);
-					else if (control==StartMenuSettings::OPEN_WINDOWS)
+					else if (control==OPEN_WINDOWS)
 					{
 						FindWindowsMenu();
 						PostMessage(g_ProgWin,WM_SYSCOMMAND,SC_TASKLIST,'CLSM');
@@ -874,7 +905,7 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 
 		if (msg->message==WM_RBUTTONUP && msg->hwnd==g_StartButton)
 		{
-			WPARAM bShift=((g_Controls&15)!=StartMenuSettings::OPEN_CLASSIC)?MK_SHIFT:0;
+			WPARAM bShift=(GetSettingInt(L"MouseClick")!=OPEN_CLASSIC)?MK_SHIFT:0;
 			if ((msg->wParam&MK_SHIFT)==bShift)
 			{
 				// additional commands for the context menu
@@ -896,14 +927,14 @@ STARTMENUAPI LRESULT CALLBACK HookStartButton( int code, WPARAM wParam, LPARAM l
 				EnableMenuItem(menu,0,MF_BYPOSITION|MF_DISABLED);
 				SetMenuDefaultItem(menu,0,TRUE);
 				AppendMenu(menu,MF_SEPARATOR,0,0);
-				AppendMenu(menu,MF_STRING,CMD_OPEN,FindTranslation("Menu.Open",L"&Open"));
-				AppendMenu(menu,MF_STRING,CMD_OPEN_ALL,FindTranslation("Menu.OpenAll",L"O&pen All Users"));
+				AppendMenu(menu,MF_STRING,CMD_OPEN,FindTranslation(L"Menu.Open",L"&Open"));
+				AppendMenu(menu,MF_STRING,CMD_OPEN_ALL,FindTranslation(L"Menu.OpenAll",L"O&pen All Users"));
 				AppendMenu(menu,MF_SEPARATOR,0,0);
-				if (FindSettingBool("EnableSettings",true))
-					AppendMenu(menu,MF_STRING,CMD_SETTINGS,FindTranslation("Menu.MenuSettings",L"Settings"));
-				AppendMenu(menu,MF_STRING,CMD_HELP,FindTranslation("Menu.MenuHelp",L"Help"));
-				if (FindSettingBool("EnableExit",true))
-					AppendMenu(menu,MF_STRING,CMD_EXIT,FindTranslation("Menu.MenuExit",L"Exit"));
+				if (GetSettingBool(L"EnableSettings"))
+					AppendMenu(menu,MF_STRING,CMD_SETTINGS,FindTranslation(L"Menu.MenuSettings",L"Settings"));
+				AppendMenu(menu,MF_STRING,CMD_HELP,FindTranslation(L"Menu.MenuHelp",L"Help"));
+				if (GetSettingBool(L"EnableExit"))
+					AppendMenu(menu,MF_STRING,CMD_EXIT,FindTranslation(L"Menu.MenuExit",L"Exit"));
 				MENUITEMINFO mii={sizeof(mii)};
 				mii.fMask=MIIM_BITMAP;
 				mii.hbmpItem=HBMMENU_POPUP_CLOSE;

@@ -112,6 +112,8 @@ OPTION CENTER_NAME="Center User Name",0, USER_NAME, 0
 OPTION SMALL_ICONS="Small Icons",0
 OPTION DISABLE_MASK="Reduce Glass Color",1
 
+AllPrograms_options=DISABLE_MASK
+
 [NOT CAPTION]
 Main_bitmap=2
 Main_bitmap_slices_X=0,0,0,13,2,13

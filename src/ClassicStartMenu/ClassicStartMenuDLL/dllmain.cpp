@@ -4,13 +4,20 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 
 #include "stdafx.h"
-#include "GlobalSettings.h"
-#include "TranslationSettings.h"
 #include "ClassicStartMenuDLL.h"
 #include "IconManager.h"
 #include "Settings.h"
+#include "Translations.h"
+#include "ResourceHelper.h"
 #include "StringSet.h"
 #include "resource.h"
+#include "..\ClassicShellLib\resource.h"
+#include "SettingsUI.h"
+#include "SkinManager.h"
+#include "uxtheme.h"
+#include "FNVHash.h"
+#include "MenuContainer.h"
+#include <dwmapi.h>
 
 #pragma comment(linker, \
 	"\"/manifestdependency:type='Win32' "\
@@ -20,61 +27,21 @@
 	"publicKeyToken='6595b64144ccf1df' "\
 	"language='*'\"")
 
-static FILETIME g_IniTimestamp;
-static CRITICAL_SECTION g_IniSection;
-static CStringSet g_ResStrings;
-static std::vector<char> g_DlgSettings;
-
-void ReadIniFile( void )
+static int g_LoadDialogs[]=
 {
-	wchar_t fname[_MAX_PATH];
-	GetModuleFileName(g_Instance,fname,_countof(fname));
-	*PathFindFileName(fname)=0;
-	Strcat(fname,_countof(fname),INI_PATH L"StartMenu.ini");
-	WIN32_FILE_ATTRIBUTE_DATA data;
-	if (GetFileAttributesEx(fname,GetFileExInfoStandard,&data))
-	{
-		if (CompareFileTime(&g_IniTimestamp,&data.ftLastWriteTime)!=0)
-		{
-			g_IniTimestamp=data.ftLastWriteTime;
-			ParseGlobalSettings(fname);
-		}
-	}
-}
+	IDD_SETTINGS,
+	IDD_SETTINGSTREE,
+	IDD_BROWSEFORICON,
+	IDD_LANGUAGE,
+	IDD_SKINSETTINGS,
+	IDD_CUSTOMTREE,
+	IDD_CUSTOMMENU,
+	0
+};
 
-CString LoadStringEx( int stringID )
+const wchar_t *GetDocRelativePath( void )
 {
-	CString str=g_ResStrings.GetString(stringID);
-	if (str.IsEmpty())
-		str.LoadString(g_Instance,stringID);
-	return str;
-}
-
-HWND CreateSettingsDialog( HWND hWndParent, DLGPROC lpDialogFunc )
-{
-	if (!g_DlgSettings.empty())
-	{
-		HWND res=CreateDialogIndirect(g_Instance,(DLGTEMPLATE*)&g_DlgSettings[0],hWndParent,lpDialogFunc);
-		if (res) return res;
-	}
-	return CreateDialog(g_Instance,MAKEINTRESOURCE(IDD_SETTINGS),hWndParent,lpDialogFunc);
-}
-
-DWORD GetVersionEx( HINSTANCE hInstance )
-{
-	// get the DLL version. this is a bit hacky. the standard way is to use GetFileVersionInfo and such API.
-	// but it takes a file name instead of module handle so it will probably load the DLL a second time.
-	// the header of the version resource is a fixed size so we can count on VS_FIXEDFILEINFO to always
-	// be at offset 40
-	HRSRC hResInfo=FindResource(hInstance,MAKEINTRESOURCE(VS_VERSION_INFO),RT_VERSION);
-	if (!hResInfo)
-		return 0;
-	HGLOBAL hRes=LoadResource(hInstance,hResInfo);
-	void *pRes=LockResource(hRes);
-	if (!pRes) return 0;
-
-	VS_FIXEDFILEINFO *pVer=(VS_FIXEDFILEINFO*)((char*)pRes+40);
-	return ((HIWORD(pVer->dwProductVersionMS)&255)<<24)|((LOWORD(pVer->dwProductVersionMS)&255)<<16)|HIWORD(pVer->dwProductVersionLS);
+	return DOC_PATH;
 }
 
 extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved )
@@ -82,7 +49,7 @@ extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpRe
 	if (dwReason==DLL_PROCESS_ATTACH)
 	{
 		g_Instance=hInstance;
-		ReadIniFile();
+		InitSettings();
 
 		wchar_t path[_MAX_PATH];
 		GetModuleFileName(hInstance,path,_countof(path));
@@ -90,11 +57,11 @@ extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpRe
 
 		wchar_t fname[_MAX_PATH];
 		Sprintf(fname,_countof(fname),L"%s" INI_PATH L"StartMenuL10N.ini",path);
-		const wchar_t *language=FindSetting("Language");
+		CString language=GetSettingString(L"Language");
 		ParseTranslations(fname,language);
 
 		HINSTANCE resInstance=NULL;
-		if (language)
+		if (!language.IsEmpty())
 		{
 			wchar_t fname[_MAX_PATH];
 			Sprintf(fname,_countof(fname),L"%s" INI_PATH L"%s.dll",path,language);
@@ -107,48 +74,27 @@ extern "C" BOOL WINAPI DllMain( HINSTANCE hInstance, DWORD dwReason, LPVOID lpRe
 			ULONG len=_countof(languages);
 			GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME,&size,languages,&len);
 
-			for (language=languages;*language;language+=Strlen(language)+1)
+			for (const wchar_t *lang=languages;*lang;lang+=Strlen(lang)+1)
 			{
 				wchar_t fname[_MAX_PATH];
-				Sprintf(fname,_countof(fname),L"%s" INI_PATH L"%s.dll",path,language);
+				Sprintf(fname,_countof(fname),L"%s" INI_PATH L"%s.dll",path,lang);
 				resInstance=LoadLibraryEx(fname,NULL,LOAD_LIBRARY_AS_DATAFILE|LOAD_LIBRARY_AS_IMAGE_RESOURCE);
 				if (resInstance)
 					break;
 			}
 		}
 
-		if (resInstance)
+		if (resInstance && GetVersionEx(resInstance)!=GetVersionEx(g_Instance))
 		{
-			if (GetVersionEx(resInstance)==GetVersionEx(g_Instance))
-			{
-				g_ResStrings.Init(resInstance);
-
-				// load the IDD_SETTINGS dialog
-				HRSRC hrsrc=FindResource(resInstance,MAKEINTRESOURCE(IDD_SETTINGS),RT_DIALOG);
-				if (hrsrc)
-				{
-					HGLOBAL hglb=LoadResource(resInstance,hrsrc);
-					if (hglb)
-					{
-						// finally lock the resource
-						LPVOID res=LockResource(hglb);
-						g_DlgSettings.resize(SizeofResource(resInstance,hrsrc));
-						if (!g_DlgSettings.empty())
-							memcpy(&g_DlgSettings[0],res,g_DlgSettings.size());
-					}
-				}
-
-			}
 			FreeLibrary(resInstance);
+			resInstance=NULL;
 		}
+		LoadTranslationResources(g_Instance,resInstance,g_LoadDialogs);
+
+		if (resInstance)
+			FreeLibrary(resInstance);
 
 		g_IconManager.Init();
-	}
-
-	if (dwReason==DLL_PROCESS_DETACH)
-	{
-		g_ResStrings.clear();
-		g_DlgSettings.clear();
 	}
 
 	return TRUE;

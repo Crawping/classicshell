@@ -1,9 +1,9 @@
 @REM !!!!! CHANGE THE GUIDS WHEN CHANGING THE VERSION !!!!!
-SET CS_VERSION=2.8.3
-SET CS_VERSION_STR=2_8_3
-SET CS_VERSION_NUM=20803
-SET CS_GUID32=F9FCCFE9-5AC1-4914-AA94-94A4C3D53157
-SET CS_GUID64=2331A3DB-2BDC-4d85-B473-43AADD9F9BD0
+SET CS_VERSION=2.9.0
+SET CS_VERSION_STR=2_9_0
+SET CS_VERSION_NUM=20900
+SET CS_GUID32=8782EDB8-CEEA-4815-9DD6-7156A0174D67
+SET CS_GUID64=82083946-B6A5-4027-BA4D-0A15963F26EB
 
 @SET CS_ERROR=0
 
@@ -31,6 +31,9 @@ REM ********* Make en-US.dll
 cd ..
 start /wait ClassicShellSetup\SetupHelper\Release\SetupHelper.exe makeEN ClassicExplorer\Setup\ClassicExplorer32.dll ClassicStartMenu\Setup\ClassicStartMenuDLL.dll
 @if ERRORLEVEL 1 goto end
+
+start /wait ClassicShellSetup\LocalizeCS\Release\LocalizeCS.exe extract en-US.dll en-US.csv
+
 cd ClassicShellSetup
 
 md Temp

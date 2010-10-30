@@ -30,12 +30,14 @@ public:
 	{
 		m_bResetStatus=true;
 		m_bForceRefresh=false;
-		m_bFixSearchResize=false;
+		m_bRemapBands=false;
 		m_bNoBreadcrumbs=false;
 		m_CurIcon=NULL;
 		m_CurPidl=NULL;
 		m_NavigatePidl=NULL;
 		m_CurPath[0]=0;
+		m_Rebar=NULL;
+		m_TopWindow=NULL;
 	}
 
 	DECLARE_REGISTRY_RESOURCEID(IDR_EXPLORERBHO)
@@ -64,36 +66,21 @@ public:
 	{
 	}
 
-	// Options for the folders tree
+	// Navigation pane styles
 	enum
 	{
-		FOLDERS_ALTENTER=1, // enable Alt+Enter support
-
-		FOLDERS_VISTA=0, // no change
-		FOLDERS_CLASSIC=2, // use classic XP style
-		FOLDERS_SIMPLE=6, // use simple XP style
-		FOLDERS_STYLE_MASK=6,
-
-		FOLDERS_NOFADE=8, // don't fade the buttons
-		FOLDERS_AUTONAVIGATE=16, // always navigate to selected folder
-		FOLDERS_FULLINDENT=32, // use full-size indent
-
-		FOLDERS_DEFAULT=FOLDERS_ALTENTER
+		STYLE_CLASSIC=0, // use classic XP style
+		STYLE_SIMPLE=1, // use simple XP style
+		STYLE_VISTA=2, // no change
 	};
 
 	enum
 	{
-		// from registry
-		SPACE_SHOW=1, // show free space and selection size
-		SPACE_INFOTIP=2, // show the infotip in the status bar if a single item is selected
+		// from settings
+		SPACE_INFOTIP=1, // show the infotip in the status bar if a single item is selected
 
 		// from code
-		SPACE_TOTAL=4, // show total size when nothing is selected
-		SPACE_WIN7=8, // running on Win7 (fix the status bar parts and show the disk free space)
-
-		ADDRESS_NOBREADCRUMBS=1, // hide breadcrumbs bar
-		ADDRESS_SHOWTITLE=2, // show path on title bar
-		ADDRESS_SHOWICON=4, // show icon on title bar
+		SPACE_WIN7=2, // running on Win7 (fix the status bar parts and show the disk free space)
 	};
 
 public:
@@ -105,13 +92,27 @@ public:
 	STDMETHOD(OnQuit)( void );
 
 private:
+	// Super-class the toolbar, so it has a different class name. A program called Folder Menu 3 looks for specific controls in Explorer,
+	// and our extra toolbar throws it off
+	class CToolbar: public CWindowImpl<CToolbar>
+	{
+	public:
+		DECLARE_WND_SUPERCLASS(L"ClassicShell.UpButton",TOOLBARCLASSNAME);
+
+		BEGIN_MSG_MAP( CToolbar )
+		END_MSG_MAP()
+	};
+
 	CComPtr<IShellBrowser> m_pBrowser;
 	CComPtr<IWebBrowser2> m_pWebBrowser;
 	bool m_bResetStatus;
 	bool m_bForceRefresh;
-	bool m_bFixSearchResize;
 	bool m_bNoBreadcrumbs;
-	CWindow m_Toolbar;
+	bool m_bRemapBands;
+	int m_UpButtonIndex;
+	CToolbar m_Toolbar;
+	HWND m_TopWindow;
+	HWND m_Rebar;
 	HICON m_IconNormal, m_IconHot, m_IconPressed, m_IconDisabled;
 	HICON m_CurIcon;
 	LPITEMIDLIST m_CurPidl;

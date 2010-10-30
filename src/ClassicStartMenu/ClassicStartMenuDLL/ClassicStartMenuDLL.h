@@ -24,10 +24,6 @@ void EnableStartTooltip( bool bEnable );
 // Restore the original drop target
 void UnhookDropTarget( void );
 
-// Set the hotkeys and controls for the start menu
-void SetControls( DWORD hotkeyCSM, DWORD hotkeyNSM, DWORD controls );
-
-extern DWORD g_Controls;
 extern HWND g_StartButton, g_TaskBar, g_OwnerWindow;
 extern HWND g_TopMenu, g_AllPrograms, g_ProgramsButton, g_UserPic; // from the Windows menu
 
@@ -41,7 +37,18 @@ enum TMenuMsgParam // wParam for the ClassicStartMenu.StartMenuMsg message
 	MSG_SHIFTDRAG, // an item is dragged on the start button (Shift is pressed)
 	MSG_FINDMENU, // find Windows menu
 	MSG_EXIT, // unhook everything and exit
+	MSG_HOTKEYS, // updates the hotkeys
 };
 
 STARTMENUAPI extern enum _MINIDUMP_TYPE MiniDumpType;
 STARTMENUAPI LONG _stdcall TopLevelFilter( _EXCEPTION_POINTERS *pExceptionInfo );
+
+enum THotkeys
+{
+	HOTKEYS_NORMAL,
+	HOTKEYS_SETTINGS,
+	HOTKEYS_CLEAR,
+};
+
+// Set the hotkeys and controls for the start menu
+void EnableHotkeys( THotkeys enable );

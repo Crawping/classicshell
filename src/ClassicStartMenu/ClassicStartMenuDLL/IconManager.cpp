@@ -4,8 +4,8 @@
 #include "stdafx.h"
 #include "IconManager.h"
 #include "FNVHash.h"
-#include "GlobalSettings.h"
-#include "TranslationSettings.h"
+#include "Settings.h"
+#include "Translations.h"
 
 const int MAX_FOLDER_LEVEL=10; // don't go more than 10 levels deep
 
@@ -35,31 +35,8 @@ void CIconManager::Init( void )
 		::ReleaseDC(NULL,hdc);
 	}
 
-	int iconSize;
-	const wchar_t *str=FindSetting("SmallIconSize");
-	if (str)
-	{
-		iconSize=_wtol(str);
-		if (iconSize<8) iconSize=8;
-		if (iconSize>128) iconSize=128;
-	}
-	else
-	{
-		if (s_DPI>120)
-			iconSize=24;
-		else if (s_DPI>96)
-			iconSize=20;
-		else
-			iconSize=16;
-	}
-	SMALL_ICON_SIZE=iconSize;
-	str=FindSetting("LargeIconSize");
-	if (str)
-		LARGE_ICON_SIZE=_wtol(str);
-	else
-		LARGE_ICON_SIZE=iconSize*2;
-	if (LARGE_ICON_SIZE<8) LARGE_ICON_SIZE=8;
-	if (LARGE_ICON_SIZE>128) LARGE_ICON_SIZE=128;
+	SMALL_ICON_SIZE=GetSettingInt(L"SmallIconSize");
+	LARGE_ICON_SIZE=GetSettingInt(L"LargeIconSize");
 
 	bool bRTL=IsLanguageRTL();
 	// create the image lists
@@ -79,7 +56,7 @@ void CIconManager::Init( void )
 		DestroyIcon(info.hIcon);
 	}
 
-	if (FindSettingBool("PreCacheIcons",true) && _wcsicmp(PathFindFileName(path),L"explorer.exe")==0)
+	if (GetSettingBool(L"PreCacheIcons") && _wcsicmp(PathFindFileName(path),L"explorer.exe")==0)
 	{
 		// don't preload icons if running outside of the explorer
 		InitializeCriticalSection(&s_PreloadSection);
@@ -88,9 +65,6 @@ void CIconManager::Init( void )
 	}
 	else
 		m_PreloadThread=INVALID_HANDLE_VALUE;
-
-	if (!FindSettingBool("FixGameIcons",false) || FAILED(SHGetKnownFolderIDList(FOLDERID_Games,0,NULL,&m_GamesPath)))
-		m_GamesPath=NULL;
 }
 
 void CIconManager::StopPreloading( bool bWait )
@@ -110,16 +84,11 @@ CIconManager::~CIconManager( void )
 {
 	if (m_LargeIcons) ImageList_Destroy(m_LargeIcons);
 	if (m_SmallIcons) ImageList_Destroy(m_SmallIcons);
-	if (m_GamesPath) ILFree(m_GamesPath);
 }
 
 // Retrieves an icon from a shell folder and child ID
-// HACK! path can be the path of pFolder, or the path of the item inside pFolder, or NULL
-// Its only purpose is to determine if pFolder is the Games folder or its subfolder
-int CIconManager::GetIcon( IShellFolder *pFolder, PIDLIST_ABSOLUTE path, PCUITEMID_CHILD item, bool bLarge )
+int CIconManager::GetIcon( IShellFolder *pFolder, PCUITEMID_CHILD item, bool bLarge )
 {
-	bool bGamesFix=(path && m_GamesPath && (ILIsEqual(path,m_GamesPath) || ILIsParent(m_GamesPath,path,FALSE)));
-
 	ProcessPreloadedIcons();
 
 	// get the IExtractIcon object
@@ -157,27 +126,22 @@ int CIconManager::GetIcon( IShellFolder *pFolder, PIDLIST_ABSOLUTE path, PCUITEM
 		}
 
 		// extract the icon
-		hr=S_FALSE;
-		if (bGamesFix)
-		{
-			// HACK!!! The Games folder doesn't quite work when Microangelo is installed. Most likely because Games only implements IExtractIconW
-			// and Microangelo only supports IExtractIconA. So we bet that location/index is indeed a DLL + resource ID, and we try ExtractIconEx
-			// first
-			if (ExtractIconEx(location,index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)==1)
-				hr=S_OK;
-		}
-
-		if (hr==S_FALSE)
+		if (flags&GIL_NOTFILENAME)
 		{
 			HICON hIcon2=NULL;
-			hr=pExtract->Extract(location,index,bLarge?&hIcon:&hIcon2,bLarge?&hIcon2:&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
+			HRESULT hr=pExtract->Extract(location,index,bLarge?&hIcon:&hIcon2,bLarge?&hIcon2:&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
+			if (FAILED(hr))
+				hIcon=hIcon2=NULL;
+			if (hr==S_FALSE)
+				flags=0;
 			if (hIcon2) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
 		}
-		if (hr==S_FALSE)
+
+		if (!(flags&GIL_NOTFILENAME))
 		{
 			// the IExtractIcon object didn't do anything - use ExtractIconEx instead
-			if (ExtractIconEx(location,index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)==1)
-				hr=S_OK;
+			if (ExtractIconEx(location,index==-1?0:index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)!=1)
+				hIcon=NULL;
 		}
 	}
 	else
@@ -216,20 +180,28 @@ int CIconManager::GetIcon( IShellFolder *pFolder, PIDLIST_ABSOLUTE path, PCUITEM
 		}
 
 		// extract the icon
-		HICON hIcon2=NULL;
-		hr=pExtractA->Extract(location,index,bLarge?&hIcon:&hIcon2,bLarge?&hIcon2:&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
-		if (hIcon2) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
-		if (hr==S_FALSE)
+		if (flags&GIL_NOTFILENAME)
+		{
+			HICON hIcon2=NULL;
+			HRESULT hr=pExtractA->Extract(location,index,bLarge?&hIcon:&hIcon2,bLarge?&hIcon2:&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
+			if (FAILED(hr))
+				hIcon=hIcon2=NULL;
+			if (hr==S_FALSE)
+				flags=0;
+			if (hIcon2) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
+		}
+
+		if (!(flags&GIL_NOTFILENAME))
 		{
 			// the IExtractIcon object didn't do anything - use ExtractIconEx instead
-			if (ExtractIconExA(location,index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)==1)
-				hr=S_OK;
+			if (ExtractIconExA(location,index==-1?0:index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)!=1)
+				hIcon=NULL;
 		}
 	}
 
 	// add to the image list
 	int index=0;
-	if (hr==S_OK)
+	if (hIcon)
 	{
 		index=ImageList_AddIcon(bLarge?m_LargeIcons:m_SmallIcons,hIcon);
 		DestroyIcon(hIcon);
@@ -276,13 +248,13 @@ int CIconManager::GetIcon( const wchar_t *location, int index, bool bLarge )
 
 	// extract icon
 	HICON hIcon;
-	HMODULE hMod=GetModuleHandle(PathFindFileName(location));
+	HMODULE hMod=*location?GetModuleHandle(PathFindFileName(location)):g_Instance;
 	if (hMod && index<0)
 	{
 		int iconSize=bLarge?LARGE_ICON_SIZE:SMALL_ICON_SIZE;
 		hIcon=(HICON)LoadImage(hMod,MAKEINTRESOURCE(-index),IMAGE_ICON,iconSize,iconSize,LR_DEFAULTCOLOR);
 	}
-	else if (ExtractIconEx(location,index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)!=1)
+	else if (ExtractIconEx(location,index==-1?0:index,bLarge?&hIcon:NULL,bLarge?NULL:&hIcon,1)!=1)
 		hIcon=NULL;
 
 	// add to the image list
@@ -293,55 +265,6 @@ int CIconManager::GetIcon( const wchar_t *location, int index, bool bLarge )
 	}
 	else
 		index=0;
-
-	// add to the cache
-	if (bLarge)
-		m_LargeCache[key]=index;
-	else
-	{
-		if (s_LoadingStage!=LOAD_STOPPED)
-			EnterCriticalSection(&s_PreloadSection);
-		m_SmallCache[key]=index;
-		if (s_LoadingStage!=LOAD_STOPPED)
-			LeaveCriticalSection(&s_PreloadSection);
-	}
-
-	return index;
-}
-
-// Retrieves an icon from shell32.dll by resource ID
-int CIconManager::GetStdIcon( int id, bool bLarge )
-{
-	// check if this id is in the cache
-	unsigned int key=CalcFNVHash(&id,4);
-	if (bLarge)
-	{
-		if (m_LargeCache.find(key)!=m_LargeCache.end())
-			return m_LargeCache[key];
-	}
-	else
-	{
-		if (s_LoadingStage!=LOAD_STOPPED)
-			EnterCriticalSection(&s_PreloadSection);
-		int res=-1;
-		if (m_SmallCache.find(key)!=m_SmallCache.end())
-			res=m_SmallCache[key];
-		if (s_LoadingStage!=LOAD_STOPPED)
-			LeaveCriticalSection(&s_PreloadSection);
-		if (res>=0) return res;
-	}
-
-	// get from shell32.dll
-	HMODULE hShell32=GetModuleHandle(L"shell32.dll");
-	if (!hShell32) return 0;
-	int size=bLarge?LARGE_ICON_SIZE:SMALL_ICON_SIZE;
-	HICON hIcon=(HICON)LoadImage(hShell32,MAKEINTRESOURCE(id),IMAGE_ICON,size,size,LR_DEFAULTCOLOR);
-	if (!hIcon)
-		return 0;
-
-	// add to the image list
-	int index=ImageList_AddIcon(bLarge?m_LargeIcons:m_SmallIcons,hIcon);
-	DestroyIcon(hIcon);
 
 	// add to the cache
 	if (bLarge)
@@ -422,11 +345,11 @@ void CIconManager::LoadFolderIcons( IShellFolder *pFolder, int level )
 					// extract the icon
 					HICON hIcon, hIcon2=NULL;
 					HRESULT hr=pExtract->Extract(location,index,&hIcon2,&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
-					if (hIcon2) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
+					if (SUCCEEDED(hr)) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
 					if (hr==S_FALSE)
 					{
 						// the IExtractIcon object didn't do anything - use ExtractIconEx instead
-						if (ExtractIconEx(location,index,NULL,&hIcon,1)==1)
+						if (ExtractIconEx(location,index==-1?0:index,NULL,&hIcon,1)==1)
 							hr=S_OK;
 					}
 					Sleep(10); // pause for a bit to reduce the stress on the system
@@ -461,11 +384,11 @@ void CIconManager::LoadFolderIcons( IShellFolder *pFolder, int level )
 						// extract the icon
 						HICON hIcon, hIcon2=NULL;
 						HRESULT hr=pExtractA->Extract(location,index,&hIcon2,&hIcon,MAKELONG(LARGE_ICON_SIZE,SMALL_ICON_SIZE));
-						if (hIcon2) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
+						if (SUCCEEDED(hr)) DestroyIcon(hIcon2); // HACK!!! Even though Extract should support NULL, not all implementations do. For example shfusion.dll crashes
 						if (hr==S_FALSE)
 						{
 							// the IExtractIcon object didn't do anything - use ExtractIconEx instead
-							if (ExtractIconExA(location,index,NULL,&hIcon,1)==1)
+							if (ExtractIconExA(location,index==-1?0:index,NULL,&hIcon,1)==1)
 								hr=S_OK;
 						}
 						Sleep(10); // pause for a bit to reduce the stress on the system

@@ -199,15 +199,14 @@ struct MenuSkin
 	static wchar_t s_SkinError[1024]; // parsing error. must end on \r\n
 };
 
-enum TResLevel
+enum
 {
-	RES_LEVEL_NONE, // don't load resources (used by the Settings dialog)
-	RES_LEVEL_ALLPROGRAMS, // load only sub-menus (used by All Programs)
-	RES_LEVEL_FULL, // load all resources
+	LOADMENU_RESOURCES=1,
+	LOADMENU_MAIN=2,
 };
 
-bool LoadMenuSkin( const wchar_t *fname, MenuSkin &skin, const wchar_t *variation, const std::vector<unsigned int> &options, TResLevel level );
-void LoadDefaultMenuSkin( MenuSkin &skin, TResLevel level );
+bool LoadMenuSkin( const wchar_t *fname, MenuSkin &skin, const wchar_t *variation, const wchar_t *options, unsigned int flags );
+void LoadDefaultMenuSkin( MenuSkin &skin, unsigned int flags );
 void FreeMenuSkin( MenuSkin &skin );
 
 // Returns the path to the skin files. path must be _MAX_PATH characters

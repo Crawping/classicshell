@@ -102,4 +102,6 @@ int MbsToWcs( wchar_t *dst, int size, const char *src );
 int WcsToMbs( char *dst, int size, const wchar_t *src );
 #endif
 
+const wchar_t *GetToken( const wchar_t *text, wchar_t *token, int size, const wchar_t *separators );
+
 #endif

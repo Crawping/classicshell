@@ -4,8 +4,9 @@
 // ExplorerBand.h : Declaration of the CExplorerBand
 
 #pragma once
-#include "resource.h"       // main symbols
+#include "resource.h"
 #include "ClassicExplorer_i.h"
+#include "SettingsParser.h"
 #include <vector>
 
 class CBandWindow: public CWindowImpl<CBandWindow>
@@ -40,6 +41,7 @@ public:
 		ID_GOBACK,
 		ID_GOFORWARD,
 		ID_REFRESH,
+		ID_STOP,
 		ID_RENAME,
 		ID_VIEW_TILES,
 		ID_VIEW_DETAILS,
@@ -59,13 +61,7 @@ public:
 		MESSAGE_HANDLER( WM_CREATE, OnCreate )
 		MESSAGE_HANDLER( WM_DESTROY, OnDestroy )
 		MESSAGE_HANDLER( WM_CLEAR, OnUpdateUI )
-		COMMAND_ID_HANDLER( ID_SETTINGS, OnSettings )
-		COMMAND_ID_HANDLER( ID_GOUP, OnNavigate )
-		COMMAND_ID_HANDLER( ID_GOBACK, OnNavigate )
-		COMMAND_ID_HANDLER( ID_GOFORWARD, OnNavigate )
-		COMMAND_ID_HANDLER( ID_EMAIL, OnEmail )
-		COMMAND_ID_HANDLER( ID_RENAME, OnRename )
-		COMMAND_RANGE_HANDLER( ID_CUT, ID_CUSTOM+100, OnToolbarCommand )
+		MESSAGE_HANDLER( WM_COMMAND, OnCommand )
 		NOTIFY_CODE_HANDLER( NM_RCLICK, OnRClick )
 		NOTIFY_CODE_HANDLER( TBN_GETINFOTIP, OnGetInfoTip )
 		NOTIFY_CODE_HANDLER( TBN_DROPDOWN, OnDropDown )
@@ -75,7 +71,7 @@ public:
 	CBandWindow( void ) { m_ImgEnabled=m_ImgDisabled=NULL; }
 
 	HWND GetToolbar( void ) { return m_Toolbar.m_hWnd; }
-	void SetBrowser( IShellBrowser *pBrowser ) { m_pBrowser=pBrowser; }
+	void SetBrowsers( IShellBrowser *pBrowser, IWebBrowser2 *pWebBrowser ) { m_pBrowser=pBrowser; m_pWebBrowser=pWebBrowser; }
 	void UpdateToolbar( void );
 	void EnableButton( int cmd, bool bEnable );
 
@@ -87,11 +83,7 @@ protected:
 	LRESULT OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnDestroy( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnUpdateUI( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
-	LRESULT OnNavigate( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
-	LRESULT OnToolbarCommand( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
-	LRESULT OnEmail( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
-	LRESULT OnRename( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
-	LRESULT OnSettings( WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled );
+	LRESULT OnCommand( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled );
 	LRESULT OnRClick( int idCtrl, LPNMHDR pnmh, BOOL& bHandled );
 	LRESULT OnGetInfoTip( int idCtrl, LPNMHDR pnmh, BOOL& bHandled );
 	LRESULT OnDropDown( int idCtrl, LPNMHDR pnmh, BOOL& bHandled );
@@ -100,6 +92,7 @@ protected:
 private:
 	CWindow m_Toolbar;
 	CComPtr<IShellBrowser> m_pBrowser;
+	CComPtr<IWebBrowser2> m_pWebBrowser;
 	HIMAGELIST m_ImgEnabled;
 	HIMAGELIST m_ImgDisabled;
 	int m_MenuIconSize;
@@ -107,35 +100,32 @@ private:
 	struct StdToolbarItem
 	{
 		int id;
-		const char *tipKey; // localization key for the tooltip
-		const wchar_t *tip; // default tooltip
-		int icon; // index in shell32.dll
-
-		const wchar_t *name; // default name
 		const wchar_t *command;
 		const wchar_t *link;
+		const wchar_t *label; // text on the button
+		const wchar_t *tip; // default tooltip
 		const wchar_t *iconPath;
 		const wchar_t *iconPathD;
 		CString regName; // name of the registry value to check for enabled/checked state
-
+		CString labelString, tipString; // additional storage for the strings
 		const StdToolbarItem *submenu;
 		mutable HBITMAP menuIcon;
 		mutable HBITMAP menuIconD;
-		mutable bool bIconLoaded;
-
+		mutable CString menuText;
+		mutable bool bIconLoaded; // the menu icon is loaded
 		bool bDisabled;
 		bool bChecked;
 	};
 
-	static const StdToolbarItem s_StdItems[];
-
 	std::vector<StdToolbarItem> m_Items;
-	void ParseToolbar( DWORD stdEnabled );
+	CSettingsParser m_Parser;
+
+	void ParseToolbar( void );
+	void ParseToolbarItem( const wchar_t *name, StdToolbarItem &item );
 	void SendShellTabCommand( int command );
 	HMENU CreateDropMenu( const StdToolbarItem *pItem );
 	HMENU CreateDropMenuRec( const StdToolbarItem *pItem, std::vector<HMODULE> &modules, HMODULE hShell32 );
-
-	static void ParseToolbarItem( const wchar_t *name, StdToolbarItem &item );
+	void SendEmail( void );
 };
 
 
@@ -208,6 +198,7 @@ protected:
 	bool m_bHandleSetInfo; // mess with the RB_SETBANDINFO message
 	CBandWindow m_BandWindow;
 	CComPtr<IWebBrowser2> m_pWebBrowser;
+	HWND m_TopWindow;
 
 	static LRESULT CALLBACK RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData );
 	static LRESULT CALLBACK ParentSubclassProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData );

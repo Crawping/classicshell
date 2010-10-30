@@ -5,6 +5,13 @@
 
 
 
+
+
+
+
+
+
+
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type"><title>Classic Explorer</title>
   <style type="text/css">
 h1 {
@@ -23,8 +30,7 @@ Explorer</span> is a plugin for Windows Explorer that:
 <ul>
 
   <li>Adds a toolbar to Explorer for some common operations (Go
-to parent folder, Cut, Copy, Paste, Delete, Properties, Email). More
-buttons can be added manually</li>
+to parent folder, Cut, Copy, Paste, Delete, Properties, Email). The toolbar is fully customizable</li>
   <li>Replaces the copy UI in Vista and Windows 7 with the more user-friendly &#8220;classic&#8221; version similar to Windows XP</li>
   
   <li>Handles Alt+Enter in the folder panel of Windows Explorer and shows the properties of the selected folder</li>
@@ -32,7 +38,10 @@ buttons can be added manually</li>
   <li>Has options for customizing the folder panel to look more like the Windows XP version or to not fade the expand buttons</li>
   <li>Can show the free disk space and the total file size in the status bar</li>
   <li>Can disable the breadcrumbs in the address bar</li>
-  <li>Can display an icon overlay for the shared folders in Windows 7<br>
+  <li>Fixes
+a long list of features that are broken in Windows 7 &#8211; missing icon
+overlay for shared folders, the jumping folders in the navigation pane,
+missing sorting headers in list view, and more<br>
   </li>
 
 
@@ -119,8 +128,7 @@ finding the right command can take a while.<br>
 &nbsp;<img src="images/toolbar.png" style="width: 590px; height: 150px;" alt="Explorer Toolbar" title="Explorer Toolbar"><br>
 <br>
 The available button are: Go Up, Cut, Copy, Paste, Delete, Properties,
-Email, Settings. More buttons can be added by editing the Explorer.ini
-file. Check out the "More Settings" section for details.<br>
+Email, Settings. More buttons can be added from the Settings dialog.<br>
 <br>
 <span style="font-weight: bold; color: rgb(0, 112, 192);">Hints:</span><br>
 &nbsp;&nbsp;&nbsp; - Hold the <strong>Control key</strong> when clicking the Up button to open the parent folder in a new Explorer window.<br>
@@ -154,7 +162,7 @@ the option "Enable third-party browser extensions".<br>
 In Windows 7 the status bar in Explorer doesn't show the free disk
 space and the size of the selected files. Classic Explorer fixes that:<br>
 <br>
-<img style="width: 507px; height: 26px;" alt="File size in status bar" title="File size in status bar" src="images/statusbar.png"><br>
+<img src="images/statusbar.png" style="width: 507px; height: 26px;" alt="File size in status bar" title="File size in status bar"><br>
 <br>
 When no files are selected the total size of all files in the folder is shown.<br>
 <br>
@@ -170,159 +178,123 @@ doesn't show that).<br>
 <br>
 
 
-<h1><a name="settings"></a>Settings</h1>The last
-button in the toolbar opens up the Settings dialog box for Classic
-Explorer. If you've hidden the Settings button you can right-click on
-any button to get the context menu and pick the Settings option.<br>
+<h1><a name="settings"></a>Settings</h1>Version 2.9.0 introduces a new
+much more powerful system for editing the settings. All settings are
+accessible through a single UI, instead of dealing with ini files:<br>
+<img src="images/explorer_settings.png" style="width: 587px; height: 397px;" alt="Classic Explorer Settings" title="Classic Explorer Settings"><br>
 <br>
-The settings are:<br>
+You can choose from seeing only the basic settings, or all available
+settings. Hover over each setting to see a description of what it's for.<br>
+Every setting has a default value. The default value can be constant,
+or it may depend on the current system settings. Once you edit a
+setting it becomes "modified" and is shown in bold. To revert to the
+default value, right-click on the setting.<br>
+<br>You can save the settings to an XML file, and later load them back.
+Press the <span style="font-weight: bold;">Backup</span> button to access these functions. From there you can
+also reset all settings to their default value.<br>
+
+<br>
+
+Press OK to store your settings. Most of the settings will be applied
+the next time you open a new Explorer window. Small number of settings
+will require a log off before you can see the change.<br>
+
+<br>
+
+<span style="font-weight: bold;">Note:</span> All Settings windows are resizeable. Resize them and place them where you want them to be. They will remember the new position.<br>
+
+<br>
+Here's one example of what can be customized:<br>
+
+    <img src="images/titlebar.png" style="width: 705px; height: 124px;" alt="Title bar tweaks" title="Title bar tweaks"><br>
+<br>
+Click on the <span style="font-weight: bold;">Toolbar Buttons</span> tab to customize the toolbar:<br>
+<img style="width: 587px; height: 397px;" alt="Customize Toolbar" title="Customize Toolbar" src="images/toolbar_settings.png"><br>
+<br>The column on the left shows the current buttons in the toolbar,
+and the column on the right lists the buttons you can add to the
+toolbar. You can drag and drop buttons from the right column to the
+left. You
+can rearrange the buttons by dragging them up and down. If you drop one button inside another you will create a sub-menu.<br>
+Hover over each
+button to see a short description of what it does. Right-click on each
+button to access more functions (like Delete, Rename, etc). From the
+right-click menu you can also reset the toolbar to the original state.<br>
+Each item in the left column must have a unique name. This is the
+identifier of the item and can only contain English letters, digits and
+underscore. Some items (like SEPARATOR) cannot be renamed.<br>
+<br>
+After you place a button in the toolbar, you can edit it's attributes. Double-click on the button to edit:<br>
+<img style="width: 384px; height: 327px;" alt="Edit toolbar button" title="Edit toolbar button" src="images/button_settings.png"><br>
+Here you can select a command for the button, its text and icon. Press the <span style="font-weight: bold;">Restore Defaults</span> button to get the default text and icon for the chosen command.<br>
+The command can be:<br>
 <ul>
-  <li><span style="font-weight: bold;">Navigation pane style</span> - choose from Windows Vista, Windows XP Classic and Windows XP Simple:<br>
-    <img style="width: 200px; height: 200px;" alt="Different folder views" title="Different folder views" src="images/FolderView.gif"><br>
+  <li><span style="font-weight: bold;">one of the predefined commands</span> - from the dropdown</li>
+  <li><span style="font-weight: bold;">open &lt;some folder&gt;</span> - this will open the folder in the current browser</li>
+  <li><span style="font-weight: bold;">custom executable string</span>
+- this can be a name of a program and its arguments, or even a URL
+(like http://www.google.com). For the arguments you can use the
+placeholders %1 and %2. %1 will be the path of the current folder and
+%2 will be the path of the selected file (only when a single file is
+selected). Environment variables like %SystemRoot% are also supported</li>
+  <li><span style="font-weight: bold;">left blank</span> - then if the link attribute is used, it will act as a command<br>
+  </li>
+</ul>
+The link can be a path to a file or a folder. If it is a file, that
+file will be executed. If it is a folder, that folder will be opened as
+a sub-menu (only for top-level buttons).<br>
 <br>
+The icon can be:<br style="font-weight: bold;">
+<ul>
+  <li><span style="font-weight: bold;">left blank</span> - then if the link attribute points to a file or a folder, the icon of that file or folder will be used<br>
     <span style="font-weight: bold;"></span></li>
-  <li><span style="font-weight: bold;">Don't fade buttons</span> - for <strong style="color: rgb(0, 112, 192);">XP Simple</strong> and <strong><span style="color: rgb(0, 112, 192);">Vista</span></strong> modes you can disable fading of the buttons when the folder tree
-doesn't have the focus. This is useful if you want to see if a folder
-has sub-folders without mousing over it<br>
-    <br>
-</li>
-  
-  <li><span style="font-weight: bold;">Full-size offset for sub-folders</span> - this option makes the sub-folders to be indented by the full size of the folder icon. By default in <span style="color: rgb(0, 112, 192); font-weight: bold;">XP Simple</span> and <span style="font-weight: bold; color: rgb(0, 112, 192);">Vista</span> mode the sub-folders are indented only half of the icon's size:<br>
-    <img style="width: 513px; height: 301px;" alt="Offset of sub-folders" title="Offset of sub-folders" src="images/iconoffset.png"><br>
-<br>
+  <li><span style="font-weight: bold;">resource file,icon ID</span> - for example <span style="font-weight: bold;">%windir%\notepad.exe,2</span>. Do not leave space between the file name and the comma. <span style="font-weight: bold;">Make sure you are using the icon's resource ID, and not the icon's index.</span> For best results use the <span style="font-weight: bold;">[...]</span> button next to the icon box</li>
+  <li><span style="font-weight: bold;">,icon ID</span> - same as above, but the resource file is the <span style="font-weight: bold;">ClassicExplorer.dll</span> itself. This is useful when referring to Classic Explorer's own icons<br>
   </li>
-
-  <li><span style="font-weight: bold;">Enable Alt+Enter</span> - turns on the Alt+Enter feature in the navigation pane<br>
-    <br>
-</li>
-
-  <li><span style="font-weight: bold;">Always navigate to the selected folder</span>
-- when turned on, if you move up and down the folders with the arrows
-keys, Explorer will navigate to the selected folder immediately<br>
-    <br>
-</li>
-  <li><span style="font-weight: bold;">Toolbar buttons </span>- pick which buttons to display in the toolbar, and chose between small and big buttons<br>
-      <br>
-    </li>
-
-  
-  
-  <li><span style="font-weight: bold;">Title bar tweaks</span> - as shown in this image:<br>
-    <img style="width: 705px; height: 124px;" alt="Title bar tweaks" title="Title bar tweaks" src="images/titlebar.png"><br>
-<span style="font-weight: bold;"></span></li>
-  <ul>
-    <li><span style="font-weight: bold;">Show Up button in the title bar</span>
-- use this to insert the Up button in the title bar of Explorer. If all
-you need from the toolbar is the Up button, you can enable this option
-and hide the toolbar to save some screen space</li>
-    <li><span style="font-weight: bold;">Show caption in the title bar, Show icon in the title bar</span> - customize the look of the caption.
-You may have to go to the Folder Options and turn on the setting
-"Display the full path in the title bar (Classic folders only)" if you
-want to see the full path instead of just the current folder name<br>
-    </li>
-    
-    <li><span style="font-weight: bold;">Disable breadcrumbs</span> -
-when turned on, the address bar always shows the full path with no
-breadcrumbs. It is recommended that you show the Up button as well,
-otherwise you won't be able to go to the parent folder with the mouse<br>
-    <br>
-<span style="font-weight: bold;"></span></li>
-
-  </ul>
-
-
-  
-  
-  <li><span style="font-weight: bold;">Replace file conflict dialog, Replace folder conflict dialog</span> - when turned on, the "file conflict" and "folder conflict" dialog boxes are replaced with the ones from Windows XP<br>
-    <br>
-  </li>
-  <li><span style="font-weight: bold;">Always show more details</span> - when turned on, any Explorer dialogs that show operation progress will open to show more details (like copy speed, etc)<br>
-  </li>
-
-  
+  <li><span style="font-weight: bold;">icon file</span> -&nbsp; for example <span style="font-weight: bold;">C:\Program Files\Mozilla Thunderbird\Email.ico</span></li>
+  <li><span style="font-weight: bold;">none</span> - this will use a blank icon</li>
 </ul>
-<ul>
-<li><span style="font-weight: bold;">Show free space and file size</span> - shows the free disk space and the total size of the selected files in the status bar<br>
-    <br>
-</li>
-  <li><span style="font-weight: bold;">Show detailed info for single selection</span> - when a single file is selected, the status bar will show details about that file instead of simply "1 item selected"<br>
-    <br>
-  </li>
-
-  <li><span style="font-weight: bold;">Add icon overlay for shared folders</span> - shows a small mark in the corner of folder icon to indicate that this folder is shared<br>
-  </li>
-
-
-</ul>
+If the label or the tip attribute start with <span style="font-weight: bold;">$</span> (dollar sign), then the
+system will treat it as a name of a string in the <span style="font-weight: bold;">ExplorerL10N.ini</span>
+file. The actual text will depend on the current language setting. This
+is useful when creating a toolbar that can be used by multiple languages.<br>
+<br>
+<span style="font-weight: bold;">Note to developers: </span>Buttons for custom commands can be checked or disabled. The toolbar checks the registry key <span style="font-weight: bold;">HKCU\Software\IvoSoft\ClassicExplorer</span>
+for a DWORD value with the name of the button (the name used in left
+column). 0 means normal, 1 is disabled and 2 is checked. The toolbar
+reads the registry keys on startup. To force the buttons to update
+their state after that you need to find all Explorer windows, locate
+the child window with class <span style="font-weight: bold;">ClassicShell.CBandWindow</span>, and post a message <span style="font-weight: bold;">WM_CLEAR</span>. This is useful if you are developing a custom exe to be used by the toolbar.<br>
 
 <br>
-
-<h1><a name="more"></a>More Settings</h1>
-
-Even more settings are available in the <span style="font-weight: bold; color: rgb(79, 129, 189);">Explorer.ini</span>
-text file in the installation folder &#8211; usually <span style="font-weight: bold; color: rgb(79, 129, 189);">C:\Program
-Files\Classic Shell</span>. From there you can set things like:<br>
-
 <br>
-<span style="font-weight: bold;">SmallIconSize, LargeIconSize</span> &#8211; the size of the icons in the toolbar<br>
 
-<span style="font-weight: bold;">ForceRefreshWin7</span> &#8211; when this is
-1, the Explorer window is forcefully refreshed soon after it is opened
-to update the status bar. This is a workaround for a bug in Windows 7<br>
-<span style="font-weight: bold;">SingleFileInfo</span> &#8211; when this is 1, the status bar will show the details for the currently selected file (if only 1 file is selected)<br>
-<span style="font-weight: bold;">AddressBarHistory</span> &#8211; controls
-the contents of the dropdown list of the address bar. Choose between
-history, list of parents, or extended list (similar to Windows XP)<br>
-<span style="font-weight: bold;">FixFolderScroll</span> &#8211; when this is
-1, it enables a fix for a bug in Windows 7 that makes the current
-folder jump down in the navigation pane when expanded<br>
-<span style="font-weight: bold;">FixSearchResize</span> &#8211;<span style="font-weight: bold;"></span>
-when this is 1, it enables a fix for a bug in Windows 7 that breaks the
-resizing of the Search box when the Up button is added to the title bar<br>
-
-<span style="font-weight: bold;">Search</span> &#8211;<span style="font-weight: bold;"></span> set this to <span style="font-weight: bold;">none</span> to hide the Search box in Explorer<br>
-<span style="font-weight: bold;">AutoNavDelay</span> &#8211;<span style="font-weight: bold;"></span> set the delay for updating the folder contents when you go up/down the navigation pane with the keyboard<br>
-
-
-<span style="font-weight: bold;">ToolbarSameSize</span> &#8211; set this to 1 to make all buttons the same size<br>
-<span style="font-weight: bold;">ToolbarListMode</span> &#8211; set this to 1 to show the button text next to the icon instead of under the icon<br><span style="font-weight: bold;">UpIconNormal, UpIconHot, UpIconPressed,UpIconDisabled, UpIconSize</span> &#8211; provide alternate icons for the Up button in the Explorer title bar<br>
-<span style="font-weight: bold;">ShareOverlayIcon</span> &#8211; customize the icon overlay used to mark shared folders<br>
-<span style="font-weight: bold;">OverwriteAlertLevel</span> &#8211; set this to 1 or 2 to enable sound alerts when a system or read-only file is about to be overwritten<br>
-<span style="font-weight: bold;">EnableCustomToolbar</span> &#8211; set this to 1 to enable the custom toolbar described in <span style="font-weight: bold;">ToolbarItems</span><br><span style="font-weight: bold;">ToolbarItems</span> &#8211; lists the
-buttons of the toolbar. Use this setting to create your own toolbar
-with custom icons, order of buttons, and more. You can add commands
-like <span style="font-weight: bold;">Undo</span>, <span style="font-weight: bold;">Redo</span>, <span style="font-weight: bold;">Refresh</span>, <span style="font-weight: bold;">Select All</span>, etc<br>
-
-<span style="font-weight: bold;"></span><br>
-The text file contains detailed description of each setting as well as instructions how to change it.<br>
-<br><span style="font-weight: bold;">Note:</span> Changes to the
-Explorer.ini file will be applied the next time you open an Explorer window. Also
-note that the Explorer.ini file is global and the settings are shared
-by all users.<br>
-<span style="font-weight: bold;"><br></span>
-<span style="font-weight: bold;">Important </span><span style="font-weight: bold;">
-Note:</span>
-The Explorer.ini file will be overwritten when you upgrade
-to a new version of Classic Shell. The installer will offer to back up
-the ini files before they are lost. If you say 'Yes' then Explorer.ini
-will be renamed to Explorer.ini.bak and will be left in the Classic
-Shell folder. After the upgrade reintroduce your
-changes to the new file one by one. Do not simply copy your old file on
-top of the new because you may miss out on some new settings or may
-miss changes to the ini file format.<br>
+<h1><a name="admin"></a>Administrative Settings</h1>The settings are
+per user and are stored in the registry. By default every user can edit
+all of their settings. An administrator can lock specific settings, so
+no user can edit them:<br>
+<img style="width: 587px; height: 397px;" alt="Locked Explorer setting" title="Locked Explorer setting" src="images/up_locked.png"><br>
+In this example the setting "Show Up button" is locked to always be
+"After Back/Forward" and can't be changed by any user. This is achieved
+by adding the setting to the <span style="font-weight: bold;">HKEY_LOCAL_MACHINE\SOFTWARE\IvoSoft\ClassicExplorer</span> registry key. Create a string value called "ShowUpButton" and set it to "AfterBack".<br>
+The easiest way to know the registry name of a setting and its value is to modify it, and then look it up in <span style="font-weight: bold;">HKEY_CURRENT_USER\Software\IvoSoft\ClassicExplorer</span>.<br>
+Sometimes you may want to lock a setting to its default value, but you
+don't know what the default value is. Then create a DWORD value and set
+it to 0xDEFA.<br>
 <br>
+There is also a global setting "EnableSettings". Set it to 0 in the
+registry to prevent the users from even opening the Settings dialog:<br>
+<img style="width: 603px; height: 257px;" alt="Disable all settings" title="Disable all settings" src="images/settings_disable_ex.png"><br>
 <br>
 <h1><a name="localization"></a>Localization</h1>
 
 
 The user
 interface (except the Settings dialog box) is localized in all 35
-languages available for Vista and Windows 7. New languages can be added
-by editing the file <span style="color: rgb(79, 129, 189); font-weight: bold;">ExplorerL10N.ini</span>
-in the installation folder &#8211;
-usually <span style="font-weight: bold; color: rgb(79, 129, 189);">C:\Program
-Files\Classic Shell</span>. <br>
+languages available for Vista and Windows 7.<br>
+The Settings dialog box is translated in a smaller number of languages.
+The default installation contains only English. More languages can be
+downloaded from the <a href="http://classicshell.sourceforge.net/">main Classic Shell page</a>. Make sure you download the translation package for the exact version of Classic Shell.<br>
 
-<br>
+<span style="font-weight: bold;"></span><br>
 
 </body></html>

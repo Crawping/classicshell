@@ -8,9 +8,9 @@
 #include "MenuContainer.h"
 #include "ClassicStartMenuDLL.h"
 #include "Settings.h"
-#include "GlobalSettings.h"
-#include "ParseSettings.h"
-#include "TranslationSettings.h"
+#include "SettingsUI.h"
+#include "SettingsUIHelper.h"
+#include "Translations.h"
 #include "LogManager.h"
 #include "FNVHash.h"
 #include "resource.h"
@@ -27,10 +27,10 @@ static INT_PTR CALLBACK RenameDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 	if (uMsg==WM_INITDIALOG)
 	{
 		// translate text
-		SetWindowText(hwndDlg,FindTranslation("Menu.RenameTitle",L"Rename"));
-		SetDlgItemText(hwndDlg,IDC_LABEL,FindTranslation("Menu.RenamePrompt",L"&New name:"));
-		SetDlgItemText(hwndDlg,IDOK,FindTranslation("Menu.RenameOK",L"OK"));
-		SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation("Menu.RenameCancel",L"Cancel"));
+		SetWindowText(hwndDlg,FindTranslation(L"Menu.RenameTitle",L"Rename"));
+		SetDlgItemText(hwndDlg,IDC_LABEL,FindTranslation(L"Menu.RenamePrompt",L"&New name:"));
+		SetDlgItemText(hwndDlg,IDOK,FindTranslation(L"Menu.RenameOK",L"OK"));
+		SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation(L"Menu.RenameCancel",L"Cancel"));
 		SetDlgItemText(hwndDlg,IDC_EDITNAME,g_RenameText);
 		if (g_RenamePos)
 		{
@@ -73,8 +73,8 @@ static void SetShutdownPrivileges( void )
 static void ExecuteCommand( const wchar_t *command )
 {
 	wchar_t exe[_MAX_PATH];
-	command=GetToken(command,exe,_countof(exe),L" ");
-	ShellExecute(NULL,NULL,exe,command,NULL,SW_SHOWNORMAL);
+	const wchar_t *args=SeparateArguments(command,exe);
+	ShellExecute(NULL,NULL,exe,args,NULL,SW_SHOWNORMAL);
 }
 
 // Dialog proc for the Log Off dialog box
@@ -83,11 +83,11 @@ static INT_PTR CALLBACK LogOffDlgProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, L
 	if (uMsg==WM_INITDIALOG)
 	{
 		// translate text
-		SendDlgItemMessage(hwndDlg,IDC_STATICICON,STM_SETICON,lParam,0);
-		SetWindowText(hwndDlg,FindTranslation("Menu.LogoffTitle",L"Log Off Windows"));
-		SetDlgItemText(hwndDlg,IDC_PROMPT,FindTranslation("Menu.LogoffPrompt",L"Are you sure you want to log off?"));
-		SetDlgItemText(hwndDlg,IDOK,FindTranslation("Menu.LogoffYes",L"&Log Off"));
-		SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation("Menu.LogoffNo",L"&No"));
+		SendDlgItemMessage(hwndDlg,IDC_STATICICON1,STM_SETICON,lParam,0);
+		SetWindowText(hwndDlg,FindTranslation(L"Menu.LogoffTitle",L"Log Off Windows"));
+		SetDlgItemText(hwndDlg,IDC_PROMPT,FindTranslation(L"Menu.LogoffPrompt",L"Are you sure you want to log off?"));
+		SetDlgItemText(hwndDlg,IDOK,FindTranslation(L"Menu.LogoffYes",L"&Log Off"));
+		SetDlgItemText(hwndDlg,IDCANCEL,FindTranslation(L"Menu.LogoffNo",L"&No"));
 		return TRUE;
 	}
 	if (uMsg==WM_COMMAND && wParam==IDOK)
@@ -172,13 +172,11 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		const StdMenuItem *pSubMenu=item.pStdItem?item.pStdItem->submenu:NULL;
 		bool bOpenUp=false;
 
-		int options=CONTAINER_DRAG;
+		int options=CONTAINER_DRAG|CONTAINER_DROP;
 		if (item.id==MENU_CONTROLPANEL)
 			options|=CONTAINER_CONTROLPANEL;
-		if (item.id!=MENU_DOCUMENTS && item.id!=MENU_CONTROLPANEL && item.id!=MENU_NETWORK && item.id!=MENU_PRINTERS)
-			options|=CONTAINER_DROP;
 		if (item.id==MENU_DOCUMENTS)
-			options|=CONTAINER_DOCUMENTS|CONTAINER_ITEMS_FIRST;
+			options|=CONTAINER_DOCUMENTS;
 		if (item.bPrograms)
 			options|=CONTAINER_PROGRAMS;
 		if (item.bLink || (m_Options&CONTAINER_LINK))
@@ -215,6 +213,47 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 				options|=CONTAINER_TRACK;
 			if (item.pStdItem->settings&StdMenuItem::MENU_NOTRACK)
 				options&=~CONTAINER_TRACK;
+			if (item.pStdItem->settings&StdMenuItem::MENU_MULTICOLUMN)
+				options|=CONTAINER_MULTICOLUMN;
+		}
+
+		if (item.pItem1 && s_pKnownFolders)
+		{
+			PIDLIST_ABSOLUTE pidl=item.pItem1;
+			if (item.bLink)
+			{
+				// resolve link
+				CComPtr<IShellFolder> pFolder;
+				PCUITEMID_CHILD child;
+				SHBindToParent(item.pItem1,IID_IShellFolder,(void**)&pFolder,&child);
+				CComPtr<IShellLink> pLink;
+				if (pFolder)
+					pFolder->GetUIObjectOf(g_OwnerWindow,1,&child,IID_IShellLink,NULL,(void**)&pLink);
+				if (pLink)
+					pLink->GetIDList(&pidl);
+			}
+			CComPtr<IKnownFolder> pFolder;
+			s_pKnownFolders->FindFolderFromIDList(pidl,&pFolder);
+			if (pidl && pidl!=item.pItem1)
+				ILFree(pidl);
+			if (pFolder)
+			{
+				KNOWNFOLDERID id;
+				if (SUCCEEDED(pFolder->GetId(&id)))
+				{
+					for (int i=0;g_SpecialFolders[i].folder;i++)
+						if (*g_SpecialFolders[i].folder==id)
+						{
+							if (g_SpecialFolders[i].settings&SpecialFolder::FOLDER_NOSUBFOLDERS)
+								options|=CONTAINER_NOSUBFOLDERS;
+							if (g_SpecialFolders[i].settings&SpecialFolder::FOLDER_NONEWFOLDER)
+								options|=CONTAINER_NONEWFOLDER;
+							if (g_SpecialFolders[i].settings&SpecialFolder::FOLDER_NODROP)
+								options&=~CONTAINER_DROP;
+							break;
+						}
+				}
+			}
 		}
 
 		if (!(options&CONTAINER_LINK) && ((m_Options&CONTAINER_MULTICOLUMN) || item.id==MENU_PROGRAMS))
@@ -242,19 +281,19 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		else
 			pMenu->m_MaxWidth=itemRect.left+border.right-s_MainRect.left;
 
-		DWORD animFlags;
+		DWORD animFlags=AW_ACTIVATE;
 		{
-			const wchar_t *str=FindSetting("SubMenuAnimation");
-			if (str && _wcsicmp(str,L"none")==0) animFlags=AW_ACTIVATE;
-			else if (str && _wcsicmp(str,L"random")==0) animFlags=AW_ACTIVATE|((rand()<RAND_MAX/2)?AW_BLEND:AW_SLIDE); // easter egg
-			else if (str && _wcsicmp(str,L"fade")==0) animFlags=AW_ACTIVATE|AW_BLEND;
-			else if (str && _wcsicmp(str,L"slide")==0) animFlags=AW_ACTIVATE|AW_SLIDE;
-			else
+			bool bDef;
+			int anim=GetSettingInt(L"SubMenuAnimation",bDef);
+			if (bDef)
 			{
 				DWORD fade;
 				SystemParametersInfo(SPI_GETMENUFADE,NULL,&fade,0);
 				animFlags=AW_ACTIVATE|(fade?AW_BLEND:AW_SLIDE);
 			}
+			if (anim==3) animFlags=AW_ACTIVATE|((rand()<RAND_MAX/2)?AW_BLEND:AW_SLIDE);
+			else if (anim==1) animFlags=AW_ACTIVATE|AW_BLEND;
+			else if (anim==2) animFlags=AW_ACTIVATE|AW_SLIDE;
 		}
 
 		BOOL animate;
@@ -420,7 +459,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		if (animate)
 		{
 			pMenu->SetWindowPos(HWND_TOPMOST,&rc2,0);
-			int speed=_wtol(FindSetting("SubMenuAnimationSpeed",L""));
+			int speed=GetSettingInt(L"SubMenuAnimationSpeed");
 			if (speed<=0) speed=MENU_ANIM_SPEED_SUBMENU;
 			else if (speed>=10000) speed=10000;
 			if (!AnimateWindow(pMenu->m_hWnd,speed,animFlags))
@@ -449,7 +488,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		if (!item.pItem1)
 		{
 			if (item.id<MENU_PROGRAMS) return; // non-executable item
-			if (item.pStdItem && item.pStdItem->submenu && !item.pStdItem->command)
+			if (item.bFolder && item.pStdItem && item.pStdItem->submenu && !item.pStdItem->command)
 				return; // non-executable item
 		}
 
@@ -531,18 +570,18 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			break;
 		case MENU_SEARCH_FILES: // show the search UI
 			{
-				const wchar_t *command=FindSetting("SearchFilesCommand");
-				if (command)
+				CString command=GetSettingString(L"SearchFilesCommand");
+				if (command.IsEmpty())
+				{
+					if (SUCCEEDED(CoCreateInstance(CLSID_Shell,NULL,CLSCTX_SERVER,IID_IShellDispatch2,(void**)&pShellDisp)))
+						pShellDisp->FindFiles();
+				}
+				else
 				{
 					wchar_t buf[1024];
 					Strcpy(buf,_countof(buf),command);
 					DoEnvironmentSubst(buf,_countof(buf));
 					ExecuteCommand(buf);
-				}
-				else
-				{
-					if (SUCCEEDED(CoCreateInstance(CLSID_Shell,NULL,CLSCTX_SERVER,IID_IShellDispatch2,(void**)&pShellDisp)))
-						pShellDisp->FindFiles();
 				}
 			}
 			break;
@@ -574,7 +613,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			break;
 		case MENU_LOGOFF: // log off
 			{
-				if (!FindSettingBool("ConfirmLogOff",false))
+				if (!GetSettingBool(L"ConfirmLogOff"))
 					ExitWindowsEx(EWX_LOGOFF,0);
 				else
 				{
@@ -655,6 +694,8 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			flags=CMF_NORMAL|CMF_CANRENAME;
 			if (bShift) flags|=CMF_EXTENDEDVERBS;
 		}
+		if (type==ACTIVATE_EXECUTE && bShift && bCtrl)
+			flags|=CMF_EXTENDEDVERBS;
 		if (FAILED(pMenu->QueryContextMenu(menu,0,CMD_LAST,32767,flags)))
 		{
 			DestroyMenu(menu);
@@ -675,7 +716,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 						command[0]=0;
 					if (_stricmp(command,"open")==0)
 					{
-						InsertMenu(menu,i+1,MF_BYPOSITION|MF_STRING,CMD_OPEN_ALL,FindTranslation("Menu.OpenAll",L"O&pen All Users"));
+						InsertMenu(menu,i+1,MF_BYPOSITION|MF_STRING,CMD_OPEN_ALL,FindTranslation(L"Menu.OpenAll",L"O&pen All Users"));
 						InsertMenu(menu,i+2,MF_BYPOSITION|MF_SEPARATOR,0,0);
 						i+=2;
 						n+=2;
@@ -714,7 +755,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			}
 			if (n>0)
 				AppendMenu(menu,MF_SEPARATOR,0,0);
-			AppendMenu(menu,MF_STRING,CMD_DELETEMRU,FindTranslation("Menu.RemoveList",L"Remove &from this list"));
+			AppendMenu(menu,MF_STRING,CMD_DELETEMRU,FindTranslation(L"Menu.RemoveList",L"Remove &from this list"));
 		}
 	}
 
@@ -754,7 +795,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		{
 			AppendMenu(menu,MF_SEPARATOR,0,0);
 			HMENU menu2=menu;
-			if (FindSettingBool("CascadingMenu",false))
+			if (GetSettingBool(L"CascadingMenu"))
 				menu2=CreatePopupMenu();
 			bool bSort=false, bNew=false;
 			int n=0;
@@ -764,13 +805,13 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			if (n>1)
 				bSort=true; // more than 1 movable items
 			wchar_t path[_MAX_PATH];
-			if (pFolder && FindSettingBool("ShowNewFolder",true) && SHGetPathFromIDList(m_Path1a[item.priority==2?1:0],path))
+			if (pFolder && !(m_Options&CONTAINER_NONEWFOLDER) && GetSettingBool(L"ShowNewFolder") && SHGetPathFromIDList(m_Path1a[item.priority==2?1:0],path))
 				bNew=true;
 
 			if (bSort)
-				AppendMenu(menu2,MF_STRING,CMD_SORT,FindTranslation("Menu.SortByName",L"Sort &by Name"));
+				AppendMenu(menu2,MF_STRING,CMD_SORT,FindTranslation(L"Menu.SortByName",L"Sort &by Name"));
 
-			AppendMenu(menu2,MF_STRING,CMD_AUTOSORT,FindTranslation("Menu.AutoArrange",L"&Auto Arrange"));
+			AppendMenu(menu2,MF_STRING,CMD_AUTOSORT,FindTranslation(L"Menu.AutoArrange",L"&Auto Arrange"));
 			if (m_Options&CONTAINER_AUTOSORT)
 			{
 				EnableMenuItem(menu2,CMD_SORT,MF_BYCOMMAND|MF_GRAYED);
@@ -778,7 +819,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 			}
 
 			if (bNew)
-				AppendMenu(menu2,MF_STRING,CMD_NEWFOLDER,FindTranslation("Menu.NewFolder",L"New Folder"));
+				AppendMenu(menu2,MF_STRING,CMD_NEWFOLDER,FindTranslation(L"Menu.NewFolder",L"New Folder"));
 
 			if (bNew || menu!=menu2)
 			{
@@ -813,7 +854,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 				if (menu!=menu2)
 				{
 					int idx=GetMenuItemCount(menu);
-					AppendMenu(menu,MF_POPUP,(UINT_PTR)menu2,FindTranslation("Menu.Organize",L"Organize Start menu"));
+					AppendMenu(menu,MF_POPUP,(UINT_PTR)menu2,FindTranslation(L"Menu.Organize",L"Organize Start menu"));
 					HICON icon=(HICON)LoadImage(g_Instance,MAKEINTRESOURCE(IDI_APPICON),IMAGE_ICON,size,size,LR_DEFAULTCOLOR);
 					if (icon)
 					{
@@ -847,7 +888,7 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 		m_ContextItem=index;
 		InvalidateItem(index);
 		KillTimer(TIMER_HOVER);
-		res=TrackPopupMenuEx(menu,TPM_LEFTBUTTON|TPM_RETURNCMD|(IsLanguageRTL()?TPM_LAYOUTRTL:0),pt2.x,pt2.y,m_hWnd,pParams);
+		res=TrackPopupMenuEx(menu,TPM_LEFTBUTTON|TPM_RETURNCMD|TPM_VERTICAL|(IsLanguageRTL()?TPM_LAYOUTRTL:0),pt2.x,pt2.y,m_hWnd,pParams);
 		m_ContextItem=-1;
 		if (m_HotItem<0) SetHotItem(index);
 		if (m_pMenu2) m_pMenu2.Release();
@@ -1179,12 +1220,15 @@ void CMenuContainer::ActivateItem( int index, TActivateType type, const POINT *p
 	DestroyMenu(menu);
 }
 
-void CMenuContainer::RunUserCommand( void )
+void CMenuContainer::RunUserCommand( bool bPicture )
 {
 	wchar_t buf[1024];
-	Strcpy(buf,_countof(buf),FindSetting("UserPictureCommand",L"control nusrmgr.cpl"));
-	DoEnvironmentSubst(buf,_countof(buf));
-	ExecuteCommand(buf);
+	Strcpy(buf,_countof(buf),GetSettingString(bPicture?L"UserPictureCommand":L"UserNameCommand"));
+	if (buf[0])
+	{
+		DoEnvironmentSubst(buf,_countof(buf));
+		ExecuteCommand(buf);
+	}
 }
 
 static DWORD WINAPI FaderThreadProc( void *param )
@@ -1201,21 +1245,8 @@ static DWORD WINAPI FaderThreadProc( void *param )
 
 void CMenuContainer::FadeOutItem( int index )
 {
-	int speed=MENU_FADE_SPEED;
-	const wchar_t *str=FindSetting("MenuFadeSpeed");
-	if (!str)
-	{
-		DWORD fade;
-		SystemParametersInfo(SPI_GETSELECTIONFADE,NULL,&fade,0);
-		if (!fade) return;
-	}
-	else
-	{
-		speed=_wtol(str);
-		if (speed<0) speed=0;
-		if (speed>10000) speed=10000;
-	}
-	if (!speed) return;
+	int speed=GetSettingInt(L"MenuFadeSpeed");
+	if (speed<=0) return;
 
 	const MenuItem &item=m_Items[index];
 	RECT rc;
